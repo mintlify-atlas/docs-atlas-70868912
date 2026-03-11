@@ -17,7 +17,7 @@ Business logic resides in the tools layer to enable code reuse across interfaces
 
 **Structure:**
 
-```
+```text
 Interfaces (CLI, MCP, Web)
        ↓
    Tools Layer (Business Logic)
@@ -184,7 +184,7 @@ All components run in a single process.
 
 **Event flow:**
 
-```
+```text
 CLI/Web/MCP → PipelineManager → PipelineWorker
                       ↓
                   EventBus
@@ -222,7 +222,7 @@ Separate coordinator and worker processes.
 
 **Event flow:**
 
-```
+```text
 Coordinators → PipelineClient → tRPC → Worker
      ↓              ↓                      ↓
 Local EventBus ← RemoteEventProxy ← Worker EventBus
@@ -261,7 +261,7 @@ const appServer = new AppServer({
 
 Content processing follows a modular pipeline:
 
-```
+```text
 Strategy → Fetcher → Pipeline → Splitter → Embedder → Storage
 ```
 

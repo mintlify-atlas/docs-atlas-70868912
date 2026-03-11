@@ -218,7 +218,7 @@ See `src/tools/GetJobInfoTool.ts:15-36` for the JobInfo type definition.
 
 When called through MCP (see `src/mcp/mcpServer.ts:312`):
 
-```
+```text
 Current Jobs:
 
 - ID: 550e8400-e29b-41d4-a716-446655440000
@@ -239,7 +239,7 @@ Current Jobs:
 
 If no jobs found:
 
-```
+```text
 No jobs found.
 ```
 
@@ -336,7 +336,7 @@ See `src/tools/GetJobInfoTool.ts:9-43` for complete type definitions.
 
 When called through MCP (see `src/mcp/mcpServer.ts:357`):
 
-```
+```text
 Job Info:
 
 - ID: 550e8400-e29b-41d4-a716-446655440000
@@ -461,7 +461,7 @@ See `src/tools/CancelJobTool.ts:9-22` for complete type definitions.
 
 When called through MCP (see `src/mcp/mcpServer.ts:390`):
 
-```
+```text
 Cancellation requested for job 550e8400-e29b-41d4-a716-446655440000. Current status: cancelling.
 ```
 
@@ -532,7 +532,7 @@ See `src/tools/CancelJobTool.ts:45` for the complete implementation.
 
 ### Status Transitions
 
-```
+```text
 queued → cancelling → cancelled
 running → cancelling → cancelled
 

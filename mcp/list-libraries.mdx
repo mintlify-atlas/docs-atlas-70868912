@@ -167,7 +167,7 @@ See `src/tools/ListLibrariesTool.ts:5-21` for the complete type definitions.
 
 When called through the MCP interface (see `src/mcp/mcpServer.ts:236`), the response is formatted as:
 
-```
+```text
 Indexed libraries:
 
 - react
@@ -177,7 +177,7 @@ Indexed libraries:
 
 If no libraries are indexed:
 
-```
+```text
 No libraries indexed yet.
 ```
 
@@ -185,7 +185,7 @@ No libraries indexed yet.
 
 ### Claude Desktop
 
-```
+```text
 List all indexed documentation libraries.
 ```
 
@@ -237,7 +237,7 @@ See `src/tools/ListLibrariesTool.ts:33` for the complete implementation.
 
 Libraries progress through these states during indexing:
 
-```
+```text
 QUEUED → IN_PROGRESS → COMPLETED
                      ↘ FAILED
                      ↘ CANCELLED
@@ -253,7 +253,7 @@ QUEUED → IN_PROGRESS → COMPLETED
 
 You can also access libraries through the MCP resource endpoint:
 
-```
+```text
 docs://libraries
 ```
 

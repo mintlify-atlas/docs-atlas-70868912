@@ -26,24 +26,24 @@ The `findVersion` tool helps you identify which version of a library is availabl
 ## Version Pattern Support
 
 ### Exact Version Match
-```
+```text
 library: "react", targetVersion: "18.2.0"
 ```
 Matches exactly version 18.2.0.
 
 ### X-Range Pattern
-```
+```text
 library: "typescript", targetVersion: "5.x"
 ```
 Matches any version 5.x.x (e.g., 5.0.0, 5.4.2).
 
-```
+```text
 library: "typescript", targetVersion: "5.2.x"
 ```
 Matches any version 5.2.x (e.g., 5.2.0, 5.2.1).
 
 ### No Version
-```
+```text
 library: "lodash", targetVersion: undefined
 ```
 Checks for unversioned documentation or returns the latest available version.
@@ -185,13 +185,13 @@ Throws `VersionNotFoundInStoreError` with available versions:
 
 When called through MCP (see `src/mcp/mcpServer.ts:270`), the response is the `message` field:
 
-```
+```text
 Best match: 18.2.0.
 ```
 
 or
 
-```
+```text
 Best match: 5.4.2. Unversioned docs also available.
 ```
 
@@ -199,7 +199,7 @@ Best match: 5.4.2. Unversioned docs also available.
 
 ### Claude Desktop
 
-```
+```text
 Find the best version of TypeScript 5.x in the indexed documentation.
 ```
 

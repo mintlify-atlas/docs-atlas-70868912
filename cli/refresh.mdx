@@ -65,7 +65,7 @@ docs-mcp-server refresh react --version 18.0.0 \
 
 The command displays progress during refresh:
 
-```
+```text
 ⏳ Initializing refresh job...
 🚀 Refreshing react v18.0.0...
 📄 Refreshing react v18.0.0: 12/342 pages
@@ -146,7 +146,7 @@ docs-mcp-server scrape mylib https://new.example.com --version 1.0.0
 
 Pages with different ETags are re-scraped:
 
-```
+```text
 📄 Refreshing react v18.0.0: 1/342 pages
 # Page content changed, re-indexing...
 ```
@@ -155,7 +155,7 @@ Pages with different ETags are re-scraped:
 
 Pages with matching ETags are skipped:
 
-```
+```text
 # 330 pages unchanged, skipped
 ```
 
@@ -163,7 +163,7 @@ Pages with matching ETags are skipped:
 
 Pages returning 404 are removed from the index:
 
-```
+```text
 # Page deleted, removing from index...
 ```
 
@@ -267,7 +267,7 @@ docs-mcp-server list
 ```
 
 **No ETag Support**
-```
+```text
 ⚠️ Warning: Server does not support ETags, re-scraping all pages
 ```
 
