@@ -1,0 +1,669 @@
+---
+title: Architecture Patterns
+description: Architectural patterns, design principles, and system guidelines for the Grounded Docs MCP Server
+---
+
+## Overview
+
+This guide explains the architectural patterns and design principles used throughout the Grounded Docs MCP Server. Read [ARCHITECTURE.md](https://github.com/arabold/docs-mcp-server/blob/main/ARCHITECTURE.md) in the source repository for the complete system architecture.
+
+## Core Architectural Patterns
+
+### Tools Layer Pattern
+
+Business logic resides in the tools layer to enable code reuse across interfaces.
+
+**Why**: CLI commands, MCP endpoints, and web routes should all use the same logic.
+
+**Structure:**
+
+```
+Interfaces (CLI, MCP, Web)
+       ↓
+   Tools Layer (Business Logic)
+       ↓
+  Pipeline & Storage Services
+```
+
+**Example:**
+
+```typescript
+// src/tools/SearchTool.ts
+export class SearchTool {
+  constructor(private docService: IDocumentManagement) {}
+  
+  async execute(options: SearchToolOptions): Promise<SearchToolResult> {
+    // Validation
+    if (!options.library) {
+      throw new ValidationError('Library name is required');
+    }
+    
+    // Business logic
+    const results = await this.docService.search({
+      library: options.library,
+      query: options.query,
+      limit: options.limit ?? 5
+    });
+    
+    return { results };
+  }
+}
+```
+
+**Usage across interfaces:**
+
+```typescript
+// CLI
+const tool = new SearchTool(documentService);
+const result = await tool.execute({ library: 'react', query: 'hooks' });
+console.log(result.results);
+
+// MCP Server
+server.setRequestHandler(SearchRequestSchema, async (request) => {
+  const tool = new SearchTool(documentService);
+  return await tool.execute(request.params);
+});
+
+// Web API
+app.post('/search', async (req, reply) => {
+  const tool = new SearchTool(documentService);
+  const result = await tool.execute(req.body);
+  return result;
+});
+```
+
+### Write-Through Architecture
+
+Pipeline jobs serve as the single source of truth, with all state changes immediately persisted to the database.
+
+**Benefits:**
+- Enables recovery after crashes
+- Provides real-time progress tracking
+- Ensures consistency between memory and storage
+
+**Implementation:**
+
+```typescript
+// src/pipeline/PipelineManager.ts
+export class PipelineManager {
+  private jobs = new Map<string, PipelineJob>();
+  
+  async updateJobStatus(jobId: string, status: JobStatus) {
+    const job = this.jobs.get(jobId);
+    if (!job) return;
+    
+    // Update in-memory state
+    job.status = status;
+    
+    // Immediately persist to database (write-through)
+    await this.versionService.updateVersion(jobId, {
+      status,
+      updatedAt: new Date().toISOString()
+    });
+    
+    // Emit event for real-time updates
+    this.eventBus.emit('job:status', { jobId, status });
+  }
+}
+```
+
+### Functionality-Based Design
+
+Components are selected based on capability requirements, not deployment context.
+
+**Pattern:**
+
+```typescript
+// src/pipeline/PipelineFactory.ts
+export class PipelineFactory {
+  static create(config: AppConfig): IPipeline {
+    // Choose based on functionality needed
+    if (config.pipeline.serverUrl) {
+      // Need remote worker capability
+      return new PipelineClient(config.pipeline.serverUrl);
+    }
+    
+    if (config.pipeline.recoverJobs) {
+      // Need job recovery capability
+      return new PipelineManager({
+        eventBus,
+        versionService,
+        maxConcurrent: config.pipeline.maxConcurrent,
+        recoverJobs: true
+      });
+    }
+    
+    // Need immediate execution only
+    return new PipelineManager({
+      eventBus,
+      versionService,
+      maxConcurrent: config.pipeline.maxConcurrent,
+      recoverJobs: false
+    });
+  }
+}
+```
+
+### Protocol Abstraction
+
+Transport layer abstracts stdio vs HTTP differences, enabling identical functionality across access methods.
+
+**Auto-detection:**
+
+```typescript
+// src/index.ts
+function detectProtocol(): 'stdio' | 'http' {
+  // No TTY = AI tool using stdio
+  if (!process.stdin.isTTY) {
+    return 'stdio';
+  }
+  
+  // Has TTY = interactive terminal using HTTP
+  return 'http';
+}
+
+const protocol = args.protocol ?? detectProtocol();
+
+if (protocol === 'stdio') {
+  await startStdioServer(config);
+} else {
+  await startHttpServer(config);
+}
+```
+
+## System Architecture Modes
+
+### Unified Mode (In-Process)
+
+All components run in a single process.
+
+**When to use:**
+- Development environment
+- Simple deployments
+- Single-user scenarios
+
+**Event flow:**
+
+```
+CLI/Web/MCP → PipelineManager → PipelineWorker
+                      ↓
+                  EventBus
+                      ↓
+          Real-time Updates to All
+```
+
+**Code:**
+
+```typescript
+// Unified mode setup
+const eventBus = new EventBus();
+const pipeline = new PipelineManager({
+  eventBus,
+  versionService,
+  maxConcurrent: 3,
+  recoverJobs: true
+});
+
+const appServer = new AppServer({
+  pipeline,
+  eventBus,
+  documentService
+});
+```
+
+### Distributed Mode (Hub & Spoke)
+
+Separate coordinator and worker processes.
+
+**When to use:**
+- Production deployments
+- Scaling workload across containers
+- Multiple coordinators sharing one worker
+
+**Event flow:**
+
+```
+Coordinators → PipelineClient → tRPC → Worker
+     ↓              ↓                      ↓
+Local EventBus ← RemoteEventProxy ← Worker EventBus
+```
+
+**Worker setup:**
+
+```typescript
+// Worker process
+const worker = new PipelineWorker({
+  eventBus,
+  versionService,
+  documentService
+});
+
+const trpcRouter = createPipelineRouter(worker);
+const server = createTRPCServer(trpcRouter);
+server.listen(3001);
+```
+
+**Coordinator setup:**
+
+```typescript
+// Coordinator process
+const client = new PipelineClient('http://worker:3001');
+const proxy = new RemoteEventProxy(client, eventBus);
+
+const appServer = new AppServer({
+  pipeline: client,
+  eventBus,
+  documentService
+});
+```
+
+## Content Processing Architecture
+
+Content processing follows a modular pipeline:
+
+```
+Strategy → Fetcher → Pipeline → Splitter → Embedder → Storage
+```
+
+### Scraper Strategies
+
+Handle different source types:
+
+```typescript
+// src/scraper/strategies/WebScraperStrategy.ts
+export class WebScraperStrategy extends BaseScraperStrategy {
+  async scrape(config: ScrapeConfig): Promise<Document[]> {
+    // 1. Fetch content
+    const pages = await this.fetchPages(config.url);
+    
+    // 2. Process through pipeline
+    const documents = await this.processPipeline(pages);
+    
+    // 3. Return processed documents
+    return documents;
+  }
+}
+```
+
+### Content Pipelines
+
+Transform content using middleware chains:
+
+```typescript
+// src/scraper/pipelines/HtmlPipeline.ts
+export class HtmlPipeline implements ContentPipeline {
+  async process(content: string, url: string): Promise<ProcessedContent> {
+    // Middleware chain
+    let processed = content;
+    
+    // 1. Clean HTML
+    processed = await this.cleanHtml(processed);
+    
+    // 2. Extract main content
+    processed = await this.extractMainContent(processed);
+    
+    // 3. Convert to markdown
+    processed = await this.convertToMarkdown(processed);
+    
+    return {
+      content: processed,
+      metadata: { url, contentType: 'text/markdown' }
+    };
+  }
+}
+```
+
+### Document Splitters
+
+Two-phase splitting approach:
+
+**Phase 1: Semantic Splitting**
+
+```typescript
+// src/splitter/SemanticMarkdownSplitter.ts
+export class SemanticMarkdownSplitter {
+  split(document: Document): Chunk[] {
+    // Preserve document structure
+    const sections = this.parseMarkdownSections(document.content);
+    
+    return sections.map(section => ({
+      content: section.content,
+      metadata: {
+        heading: section.heading,
+        level: section.level,
+        path: section.path
+      }
+    }));
+  }
+}
+```
+
+**Phase 2: Size Optimization**
+
+```typescript
+// src/splitter/GreedySplitter.ts
+export class GreedySplitter {
+  optimize(chunks: Chunk[], targetSize: number): Chunk[] {
+    // Combine or split chunks to target size
+    return this.greedyOptimization(chunks, targetSize);
+  }
+}
+```
+
+## Event-Driven Architecture
+
+The EventBus decouples producers from consumers:
+
+```typescript
+// src/services/EventBus.ts
+export class EventBus {
+  private listeners = new Map<string, Set<EventListener>>();
+  
+  emit(event: string, data: unknown): void {
+    const listeners = this.listeners.get(event) ?? new Set();
+    for (const listener of listeners) {
+      listener(data);
+    }
+  }
+  
+  on(event: string, listener: EventListener): void {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event)!.add(listener);
+  }
+}
+```
+
+**Usage:**
+
+```typescript
+// Producer (PipelineManager)
+this.eventBus.emit('job:status', {
+  jobId: job.id,
+  status: 'RUNNING',
+  progress: 0.5
+});
+
+// Consumer (Web UI)
+eventBus.on('job:status', (data) => {
+  updateJobDisplay(data.jobId, data.status, data.progress);
+});
+
+// Consumer (MCP Server)
+eventBus.on('job:status', (data) => {
+  sendNotification(data);
+});
+```
+
+## Storage Architecture
+
+Normalized SQLite schema with three core tables:
+
+```sql
+-- Libraries table
+CREATE TABLE libraries (
+  id INTEGER PRIMARY KEY,
+  library TEXT UNIQUE NOT NULL,
+  organization TEXT
+);
+
+-- Versions table (job state hub)
+CREATE TABLE versions (
+  id INTEGER PRIMARY KEY,
+  library_id INTEGER NOT NULL,
+  version TEXT NOT NULL,
+  status TEXT NOT NULL,  -- Job status
+  progress REAL,         -- Job progress
+  error TEXT,            -- Job error
+  config TEXT,           -- Scraper config (for refresh)
+  FOREIGN KEY (library_id) REFERENCES libraries(id)
+);
+
+-- Documents table
+CREATE TABLE documents (
+  id INTEGER PRIMARY KEY,
+  version_id INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  embedding BLOB,        -- Vector embedding
+  metadata TEXT,         -- JSON metadata
+  FOREIGN KEY (version_id) REFERENCES versions(id)
+);
+```
+
+**Hybrid Search:**
+
+```typescript
+// src/store/DocumentRetrieverService.ts
+export class DocumentRetrieverService {
+  async search(options: SearchOptions): Promise<SearchResult[]> {
+    // 1. Vector similarity search
+    const vectorResults = await this.vectorSearch(options.query);
+    
+    // 2. Full-text search (FTS5)
+    const ftsResults = await this.fullTextSearch(options.query);
+    
+    // 3. Combine using Reciprocal Rank Fusion (RRF)
+    const combined = this.reciprocalRankFusion(
+      vectorResults,
+      ftsResults,
+      { vectorWeight: 0.7, ftsWeight: 0.3 }
+    );
+    
+    return combined.slice(0, options.limit);
+  }
+}
+```
+
+## Configuration System
+
+Configuration resolves once per process with strict validation:
+
+```typescript
+// src/utils/config.ts
+import { z } from 'zod';
+
+const AppConfigSchema = z.object({
+  database: z.object({
+    path: z.string(),
+    migrations: z.boolean().default(true)
+  }),
+  pipeline: z.object({
+    maxConcurrent: z.number().min(1).max(10).default(3),
+    serverUrl: z.string().url().optional(),
+    recoverJobs: z.boolean().default(true)
+  }),
+  embeddings: z.object({
+    provider: z.enum(['openai', 'azure', 'google', 'aws']),
+    model: z.string()
+  })
+});
+
+export function loadConfig(): AppConfig {
+  // 1. Load defaults
+  const config = { ...DEFAULT_CONFIG };
+  
+  // 2. Merge config file
+  const fileConfig = loadConfigFile();
+  Object.assign(config, fileConfig);
+  
+  // 3. Merge environment variables
+  const envConfig = loadEnvConfig();
+  Object.assign(config, envConfig);
+  
+  // 4. Merge CLI arguments
+  const cliConfig = parseCLIArgs();
+  Object.assign(config, cliConfig);
+  
+  // 5. Validate with Zod
+  return AppConfigSchema.parse(config);
+}
+```
+
+## Design Principles
+
+### Single Responsibility
+
+Each component has one clear purpose:
+
+- **PipelineManager**: Job queue and coordination
+- **PipelineWorker**: Job execution
+- **EventBus**: Event distribution
+- **DocumentService**: Document CRUD operations
+
+### Dependency Injection
+
+Services receive dependencies through constructors:
+
+```typescript
+export class SearchTool {
+  constructor(
+    private docService: IDocumentManagement,
+    private logger: Logger = logger
+  ) {}
+}
+
+// Easy to test with mocks
+const tool = new SearchTool(mockDocService, mockLogger);
+```
+
+### Interface Segregation
+
+Use focused interfaces:
+
+```typescript
+// Good: Focused interface
+interface IDocumentSearch {
+  search(options: SearchOptions): Promise<SearchResult[]>;
+}
+
+interface IDocumentManagement {
+  listLibraries(): Promise<Library[]>;
+  addVersion(library: string, version: string): Promise<void>;
+  removeVersion(library: string, version: string): Promise<void>;
+}
+
+// Bad: God interface
+interface IDocumentService {
+  search(...): Promise<SearchResult[]>;
+  listLibraries(...): Promise<Library[]>;
+  addVersion(...): Promise<void>;
+  removeVersion(...): Promise<void>;
+  // ... 20 more methods
+}
+```
+
+### Composition Over Inheritance
+
+Prefer composition:
+
+```typescript
+// Good: Composition
+class AppServer {
+  constructor(
+    private pipeline: IPipeline,
+    private eventBus: EventBus,
+    private docService: IDocumentManagement
+  ) {}
+}
+
+// Bad: Deep inheritance
+class AppServer extends BaseServer {
+  // Tightly coupled to parent
+}
+```
+
+## Extension Points
+
+To add new functionality:
+
+### New Content Source
+
+1. Create strategy in `src/scraper/strategies/`
+2. Implement `BaseScraperStrategy` interface
+3. Register in strategy factory
+
+```typescript
+// src/scraper/strategies/CustomScraperStrategy.ts
+export class CustomScraperStrategy extends BaseScraperStrategy {
+  async scrape(config: ScrapeConfig): Promise<Document[]> {
+    // Custom scraping logic
+  }
+}
+```
+
+### New Tool
+
+1. Create tool in `src/tools/`
+2. Add validation and business logic
+3. Expose in CLI, MCP, and Web interfaces
+
+```typescript
+// src/tools/CustomTool.ts
+export class CustomTool {
+  constructor(private service: IService) {}
+  
+  async execute(options: CustomToolOptions): Promise<CustomToolResult> {
+    // Tool implementation
+  }
+}
+```
+
+### New Embedding Provider
+
+1. Add provider configuration
+2. Implement LangChain embeddings interface
+3. Register in embeddings factory
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Layered Architecture">
+    - **Interfaces** delegate to Tools
+    - **Tools** implement business logic
+    - **Services** handle data operations
+    - **Keep layers separate**
+  </Accordion>
+
+  <Accordion title="Event-Driven Updates">
+    - Use EventBus for decoupling
+    - Emit events at state boundaries
+    - Subscribe for real-time updates
+    - Don't poll for status
+  </Accordion>
+
+  <Accordion title="Write-Through State">
+    - Update memory and DB together
+    - Enable crash recovery
+    - Maintain single source of truth
+    - Emit events after persistence
+  </Accordion>
+
+  <Accordion title="Configuration">
+    - Use Zod for validation
+    - Load once per process
+    - Support environment variables
+    - Provide sensible defaults
+  </Accordion>
+</AccordionGroup>
+
+## Reading the Source
+
+Key files to understand the architecture:
+
+1. **[ARCHITECTURE.md](https://github.com/arabold/docs-mcp-server/blob/main/ARCHITECTURE.md)** - Complete system architecture
+2. **src/app/AppServer.ts** - Service composition
+3. **src/pipeline/PipelineFactory.ts** - Mode selection
+4. **src/tools/** - Business logic layer
+5. **src/store/** - Data persistence
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Getting Started" icon="rocket" href="/contributing/getting-started">
+    Set up your development environment
+  </Card>
+  <Card title="Code Style Guide" icon="code" href="/contributing/code-style">
+    Learn code conventions
+  </Card>
+</CardGroup>

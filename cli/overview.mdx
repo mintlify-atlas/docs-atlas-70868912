@@ -1,0 +1,232 @@
+---
+title: CLI Overview
+description: Complete guide to using the Grounded Docs MCP Server command-line interface
+---
+
+The Grounded Docs MCP Server provides a powerful CLI for managing documentation indexes, running servers, and querying documentation.
+
+## Installation
+
+Install globally via npm:
+
+```bash
+npm install -g docs-mcp-server
+```
+
+Or use via npx:
+
+```bash
+npx docs-mcp-server <command>
+```
+
+## Quick Start
+
+```bash
+# Scrape and index documentation
+docs-mcp-server scrape react https://react.dev/reference/react
+
+# Search the indexed documentation
+docs-mcp-server search react "hooks"
+
+# List all indexed libraries
+docs-mcp-server list
+
+# Start the MCP server (default command)
+docs-mcp-server
+```
+
+## Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `server` (default) | Start the unified MCP server |
+| `scrape` | Scrape and index documentation from a URL or local directory |
+| `search` | Query the documentation index |
+| `list` | List all indexed libraries and versions |
+| `remove` | Delete a library's documentation from the index |
+| `refresh` | Update an existing library by re-scraping changed pages |
+| `config` | View or modify configuration |
+| `mcp` | Start MCP server in standalone mode |
+| `web` | Start web interface only |
+| `worker` | Start pipeline worker in standalone mode |
+| `fetch-url` | Fetch and display a single URL (debugging) |
+| `find-version` | Find the best matching version for a library |
+
+## Global Options
+
+These options are available for all commands:
+
+<ParamField path="--verbose" type="boolean" default="false">
+  Enable verbose (debug) logging
+</ParamField>
+
+<ParamField path="--silent" type="boolean" default="false">
+  Disable all logging except errors (mutually exclusive with `--verbose`)
+</ParamField>
+
+<ParamField path="--telemetry" type="boolean">
+  Enable/disable telemetry collection. Use `--no-telemetry` to disable.
+</ParamField>
+
+<ParamField path="--store-path" type="string">
+  Custom path for data storage directory. Defaults to system-specific location.
+  Can also be set via `DOCS_MCP_STORE_PATH` environment variable.
+</ParamField>
+
+<ParamField path="--config" type="string">
+  Path to configuration file. If specified, the config is read-only and cannot be modified via `config set`.
+</ParamField>
+
+<ParamField path="--logo" type="boolean" default="true">
+  Show ASCII art logo on startup (for server commands)
+</ParamField>
+
+<ParamField path="--help" type="boolean">
+  Show help information for a command
+</ParamField>
+
+<ParamField path="--version" type="boolean">
+  Show version information
+</ParamField>
+
+## Common Patterns
+
+### Scraping Local Documentation
+
+Use the `file://` protocol to scrape local HTML files or directories:
+
+```bash
+# Single HTML file
+docs-mcp-server scrape mylib file:///Users/me/docs/index.html
+
+# Directory of HTML files
+docs-mcp-server scrape mylib file:///Users/me/docs/my-library
+```
+
+<Note>
+  When using Docker, mount the local directory and use the container path.
+</Note>
+
+### Working with Versions
+
+Version matching supports flexible patterns:
+
+```bash
+# Exact version
+docs-mcp-server search react "hooks" --version 18.0.0 --exact-match
+
+# Semantic version range (matches 18.0.0 or earlier)
+docs-mcp-server search react "hooks" --version 18.0.0
+
+# Wildcard patterns
+docs-mcp-server search typescript "types" --version 5.x
+docs-mcp-server search typescript "types" --version 5.2.x
+```
+
+### Using External Pipeline Workers
+
+For distributed setups, connect CLI commands to a remote pipeline worker:
+
+```bash
+# Scrape using remote worker
+docs-mcp-server scrape react https://react.dev \
+  --server-url http://localhost:8080/api
+
+# Search using remote worker
+docs-mcp-server search react "hooks" \
+  --server-url http://localhost:8080/api
+```
+
+### Custom Embedding Models
+
+Specify embedding models per command:
+
+```bash
+# Use OpenAI embeddings
+docs-mcp-server scrape react https://react.dev \
+  --embedding-model openai:text-embedding-3-small
+
+# Use Vertex AI embeddings
+docs-mcp-server scrape react https://react.dev \
+  --embedding-model vertex:text-embedding-004
+```
+
+### Output Formats
+
+The `config` command supports multiple output formats:
+
+```bash
+# JSON output (default)
+docs-mcp-server config get scraper.maxPages --json
+
+# YAML output
+docs-mcp-server config --yaml
+
+# Plain text for scalars
+docs-mcp-server config get scraper.maxPages
+```
+
+## Error Handling
+
+### Common Issues
+
+**Mutually Exclusive Options**
+
+```bash
+# Error: Cannot use both --verbose and --silent
+docs-mcp-server --verbose --silent list
+```
+
+**Invalid Configuration Path**
+
+```bash
+# Error: Use a more specific path
+docs-mcp-server config set scraper "value"
+
+# Correct: Set a leaf value
+docs-mcp-server config set scraper.maxPages 200
+```
+
+**Read-Only Configuration**
+
+```bash
+# Error: Cannot modify when using explicit --config
+docs-mcp-server --config /path/to/config.yaml config set scraper.maxPages 200
+
+# Correct: Remove --config to modify default config
+docs-mcp-server config set scraper.maxPages 200
+```
+
+## Exit Codes
+
+- `0` - Success
+- `1` - Error (invalid arguments, operation failed, etc.)
+
+## Shell Completion
+
+The CLI is built with Yargs, which supports shell completion. Generate completion scripts:
+
+```bash
+# Bash
+docs-mcp-server completion >> ~/.bashrc
+
+# Zsh
+docs-mcp-server completion >> ~/.zshrc
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Scrape Command" icon="download" href="/cli/scrape">
+    Index documentation from URLs or local files
+  </Card>
+  <Card title="Search Command" icon="magnifying-glass" href="/cli/search">
+    Query your documentation index
+  </Card>
+  <Card title="Configuration" icon="gear" href="/cli/config">
+    Manage server configuration
+  </Card>
+  <Card title="Environment Variables" icon="code" href="/cli/environment-variables">
+    Configure via environment variables
+  </Card>
+</CardGroup>

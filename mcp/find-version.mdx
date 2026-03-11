@@ -1,0 +1,326 @@
+---
+title: findVersion Tool
+description: Find the best matching version of a library in the store
+---
+
+The `findVersion` tool helps you identify which version of a library is available in your Grounded Docs server, supporting both exact version matches and X-Range patterns.
+
+## Tool Definition
+
+**MCP Tool Name:** `find_version`
+
+**Source:** `src/tools/FindVersionTool.ts`
+
+**Description:** Find the best matching version for a library. Supports exact version matches and X-Range patterns (e.g., '5.x', '5.2.x').
+
+## Parameters
+
+<ParamField path="library" type="string" required>
+  Library name to search for
+</ParamField>
+
+<ParamField path="targetVersion" type="string" optional>
+  Version pattern to match (exact or X-Range). If omitted, finds the latest version or checks for unversioned docs.
+</ParamField>
+
+## Version Pattern Support
+
+### Exact Version Match
+```
+library: "react", targetVersion: "18.2.0"
+```
+Matches exactly version 18.2.0.
+
+### X-Range Pattern
+```
+library: "typescript", targetVersion: "5.x"
+```
+Matches any version 5.x.x (e.g., 5.0.0, 5.4.2).
+
+```
+library: "typescript", targetVersion: "5.2.x"
+```
+Matches any version 5.2.x (e.g., 5.2.0, 5.2.1).
+
+### No Version
+```
+library: "lodash", targetVersion: undefined
+```
+Checks for unversioned documentation or returns the latest available version.
+
+## Response Structure
+
+<ResponseField name="bestMatch" type="string | null">
+  The best matching version found, or null if no match
+</ResponseField>
+
+<ResponseField name="hasUnversioned" type="boolean">
+  Whether unversioned documentation exists for this library
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Human-readable description of the result
+</ResponseField>
+
+## TypeScript Types
+
+```typescript
+interface FindVersionToolOptions {
+  library: string;
+  targetVersion?: string;
+}
+
+interface FindVersionToolResult {
+  bestMatch: string | null;
+  hasUnversioned: boolean;
+  message: string;
+}
+```
+
+See `src/tools/FindVersionTool.ts:4-13` for complete type definitions.
+
+## Example Requests
+
+### Find Exact Version
+
+```json
+{
+  "name": "find_version",
+  "arguments": {
+    "library": "react",
+    "targetVersion": "18.2.0"
+  }
+}
+```
+
+### Find X-Range Version
+
+```json
+{
+  "name": "find_version",
+  "arguments": {
+    "library": "typescript",
+    "targetVersion": "5.x"
+  }
+}
+```
+
+### Find Latest or Unversioned
+
+```json
+{
+  "name": "find_version",
+  "arguments": {
+    "library": "lodash"
+  }
+}
+```
+
+## Example Responses
+
+### Exact Match Found
+
+```json
+{
+  "bestMatch": "18.2.0",
+  "hasUnversioned": false,
+  "message": "Best match: 18.2.0."
+}
+```
+
+### X-Range Match with Unversioned
+
+```json
+{
+  "bestMatch": "5.4.2",
+  "hasUnversioned": true,
+  "message": "Best match: 5.4.2. Unversioned docs also available."
+}
+```
+
+### Only Unversioned Available
+
+```json
+{
+  "bestMatch": null,
+  "hasUnversioned": true,
+  "message": "No matching version found for lodash@4.x, but unversioned docs exist."
+}
+```
+
+### No Match
+
+```json
+{
+  "bestMatch": null,
+  "hasUnversioned": false,
+  "message": "No matching version or unversioned documents found for vue@2.x."
+}
+```
+
+## Error Cases
+
+### Invalid Library Name
+
+Throws `ValidationError`:
+
+```json
+{
+  "error": "Library name is required and must be a non-empty string."
+}
+```
+
+### Library Not Found
+
+Throws `VersionNotFoundInStoreError` with available versions:
+
+```json
+{
+  "error": "Library 'nonexistent' not found in store.",
+  "availableVersions": []
+}
+```
+
+## MCP Output
+
+When called through MCP (see `src/mcp/mcpServer.ts:270`), the response is the `message` field:
+
+```
+Best match: 18.2.0.
+```
+
+or
+
+```
+Best match: 5.4.2. Unversioned docs also available.
+```
+
+## Usage from MCP Clients
+
+### Claude Desktop
+
+```
+Find the best version of TypeScript 5.x in the indexed documentation.
+```
+
+### Direct MCP Call
+
+```typescript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+
+const result = await client.callTool({
+  name: 'find_version',
+  arguments: {
+    library: 'typescript',
+    targetVersion: '5.x'
+  }
+});
+```
+
+## Implementation Details
+
+The tool validates input and delegates to the document service:
+
+```typescript
+async execute(options: FindVersionToolOptions): Promise<FindVersionToolResult> {
+  const { library, targetVersion } = options;
+  
+  // Validate library name
+  if (!library || typeof library !== "string" || library.trim() === "") {
+    throw new ValidationError(
+      "Library name is required and must be a non-empty string.",
+      this.constructor.name,
+    );
+  }
+  
+  const libraryAndVersion = `${library}${targetVersion ? `@${targetVersion}` : ""}`;
+  
+  // Find best version using document service
+  const { bestMatch, hasUnversioned } = await this.docService.findBestVersion(
+    library,
+    targetVersion,
+  );
+  
+  // Build descriptive message
+  let message = "";
+  if (bestMatch) {
+    message = `Best match: ${bestMatch}.`;
+    if (hasUnversioned) {
+      message += " Unversioned docs also available.";
+    }
+  } else if (hasUnversioned) {
+    message = `No matching version found for ${libraryAndVersion}, but unversioned docs exist.`;
+  } else {
+    message = `No matching version or unversioned documents found for ${libraryAndVersion}.`;
+  }
+  
+  return {
+    bestMatch,
+    hasUnversioned,
+    message,
+  };
+}
+```
+
+See `src/tools/FindVersionTool.ts:32` for the complete implementation.
+
+## Version Matching Logic
+
+The version matching follows semantic versioning rules:
+
+1. **Exact Match**: Returns the exact version if available
+2. **X-Range Match**: Returns the highest matching version
+   - `5.x` matches `5.0.0`, `5.1.0`, `5.4.2` → returns `5.4.2`
+   - `5.2.x` matches `5.2.0`, `5.2.1` → returns `5.2.1`
+3. **No Version**: Checks for unversioned docs (version = empty string)
+4. **Fallback**: Returns null if no matches found
+
+## Related Tools
+
+- [list_libraries](/mcp/list-libraries) - See all indexed libraries and versions
+- [search_docs](/mcp/search-tool) - Search within a specific version
+- [scrape_docs](/mcp/scrape-tool) - Index a new version
+
+## Use Cases
+
+### Before Searching
+Check if a version exists before attempting to search:
+
+```typescript
+const { bestMatch } = await findVersion({ 
+  library: "react", 
+  targetVersion: "18.x" 
+});
+
+if (bestMatch) {
+  await searchDocs({
+    library: "react",
+    version: bestMatch,
+    query: "useState hooks"
+  });
+}
+```
+
+### Version Discovery
+Find what versions are available:
+
+```typescript
+const result = await findVersion({ 
+  library: "typescript" 
+});
+
+console.log(result.message);
+// "Best match: 5.4.2. Unversioned docs also available."
+```
+
+### Graceful Degradation
+Fall back to unversioned docs if specific version not available:
+
+```typescript
+const { bestMatch, hasUnversioned } = await findVersion({
+  library: "lodash",
+  targetVersion: "4.17.x"
+});
+
+const versionToUse = bestMatch || (hasUnversioned ? null : undefined);
+```

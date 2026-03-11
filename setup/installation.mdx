@@ -1,0 +1,146 @@
+---
+title: Installation
+description: Install and run the Docs MCP Server using npx, Docker, or embedded mode
+---
+
+## Quick Start
+
+The easiest way to get started is using the standalone server, which includes both the MCP endpoints and the web interface in a single process.
+
+<Tabs>
+  <Tab title="npx (Recommended)">
+    If you have Node.js 22+ installed, run the server directly with a single command:
+
+    ```bash
+    npx @arabold/docs-mcp-server@latest
+    ```
+
+    This runs the server on port **6280** by default. Open [http://localhost:6280](http://localhost:6280) to access the web interface.
+
+    <Note>
+      Use `nvm use 22` and run `npm rebuild` if you recently changed Node versions.
+    </Note>
+
+    **With OpenAI Embeddings (Recommended):**
+
+    ```bash
+    OPENAI_API_KEY="sk-proj-..." npx @arabold/docs-mcp-server@latest
+    ```
+
+    Using an embedding model is optional but dramatically improves search quality by enabling semantic vector search.
+  </Tab>
+
+  <Tab title="Docker">
+    Running via Docker ensures you have all dependencies without polluting your host system:
+
+    ```bash
+    docker run --rm \
+      -v docs-mcp-data:/data \
+      -v docs-mcp-config:/config \
+      -p 6280:6280 \
+      ghcr.io/arabold/docs-mcp-server:latest \
+      --protocol http --host 0.0.0.0 --port 6280
+    ```
+
+    The server writes its configuration to `/config/docs-mcp-server/config.yaml`. Mounting the `/config` volume ensures your settings persist across restarts.
+
+    **With OpenAI Embeddings:**
+
+    ```bash
+    docker run --rm \
+      -v docs-mcp-data:/data \
+      -v docs-mcp-config:/config \
+      -p 6280:6280 \
+      -e OPENAI_API_KEY="sk-proj-..." \
+      ghcr.io/arabold/docs-mcp-server:latest \
+      --protocol http --host 0.0.0.0 --port 6280
+    ```
+  </Tab>
+</Tabs>
+
+## Installation Methods
+
+### Embedded Server
+
+Run the MCP server directly embedded in your AI assistant without a separate process or web interface. This provides MCP integration only.
+
+Add this to your MCP settings (VS Code, Claude Desktop, etc.):
+
+<CodeGroup>
+
+```json Basic
+{
+  "mcpServers": {
+    "docs-mcp-server": {
+      "command": "npx",
+      "args": ["@arabold/docs-mcp-server@latest"],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+```json With OpenAI API Key
+{
+  "mcpServers": {
+    "docs-mcp-server": {
+      "command": "npx",
+      "args": ["@arabold/docs-mcp-server@latest"],
+      "env": {
+        "OPENAI_API_KEY": "sk-proj-..."
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+<Warning>
+  When running in embedded mode, you lose access to the Web Interface unless you launch it separately.
+</Warning>
+
+### Docker Compose (Scaling)
+
+For production deployments or when you need to scale processing, use Docker Compose to run separate services.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/arabold/docs-mcp-server.git
+    cd docs-mcp-server
+    ```
+  </Step>
+
+  <Step title="Set environment variables">
+    ```bash
+    export OPENAI_API_KEY="your-key-here"
+    ```
+  </Step>
+
+  <Step title="Start all services">
+    ```bash
+    docker compose up -d
+    ```
+  </Step>
+</Steps>
+
+**Service Architecture:**
+
+- **Worker** (port 8080): Handles documentation processing jobs
+- **MCP Server** (port 6280): Provides `/sse` endpoint for AI tools
+- **Web Interface** (port 6281): Browser-based management interface
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/setup/configuration">
+    Configure the server with environment variables and config files
+  </Card>
+  <Card title="Connect Clients" icon="plug" href="/setup/connecting-clients">
+    Connect Claude, VS Code, Cursor, and other MCP clients
+  </Card>
+</CardGroup>

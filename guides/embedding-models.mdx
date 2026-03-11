@@ -1,0 +1,346 @@
+---
+title: "Embedding Models"
+description: "Configure embedding models for semantic vector search"
+---
+
+This guide details how to configure the embedding models used for vector search. You can set the embedding model using the `embeddings.model` configuration key, the `DOCS_MCP_EMBEDDING_MODEL` environment variable, or the `--embedding-model` CLI flag.
+
+<Note>
+  Using an embedding model is **optional** but dramatically improves search quality by enabling semantic vector search.
+</Note>
+
+## Model Selection
+
+If you leave the model empty but provide `OPENAI_API_KEY`, the server defaults to `text-embedding-3-small`.
+
+### Supported Options
+
+<CardGroup cols={2}>
+  <Card title="OpenAI" icon="openai">
+    `text-embedding-3-small` (default)
+    
+    `text-embedding-3-large`
+  </Card>
+  <Card title="Ollama (Local)" icon="computer">
+    `openai:nomic-embed-text`
+    
+    `openai:snowflake-arctic-embed2`
+  </Card>
+  <Card title="Google Vertex AI" icon="google">
+    `vertex:text-embedding-004`
+  </Card>
+  <Card title="Google Gemini" icon="sparkles">
+    `gemini:embedding-001`
+  </Card>
+  <Card title="AWS Bedrock" icon="aws">
+    `aws:amazon.titan-embed-text-v1`
+  </Card>
+  <Card title="Azure OpenAI" icon="microsoft">
+    `microsoft:text-embedding-ada-002`
+  </Card>
+</CardGroup>
+
+## Provider Configuration
+
+Provider credentials use the provider-specific environment variables listed below.
+
+### Environment Variables
+
+<ParamField path="DOCS_MCP_EMBEDDING_MODEL" type="string">
+  Embedding model to use (e.g., `text-embedding-3-small`, `openai:nomic-embed-text`)
+</ParamField>
+
+<ParamField path="OPENAI_API_KEY" type="string">
+  OpenAI API key for embeddings
+</ParamField>
+
+<ParamField path="OPENAI_API_BASE" type="string">
+  Custom OpenAI-compatible API endpoint (e.g., `http://localhost:11434/v1` for Ollama)
+</ParamField>
+
+<ParamField path="GOOGLE_API_KEY" type="string">
+  Google API key for Gemini embeddings
+</ParamField>
+
+<ParamField path="GOOGLE_APPLICATION_CREDENTIALS" type="string">
+  Path to Google service account JSON for Vertex AI
+</ParamField>
+
+<ParamField path="AWS_ACCESS_KEY_ID" type="string">
+  AWS key for Bedrock embeddings
+</ParamField>
+
+<ParamField path="AWS_SECRET_ACCESS_KEY" type="string">
+  AWS secret for Bedrock embeddings
+</ParamField>
+
+<ParamField path="AWS_REGION" type="string">
+  AWS region for Bedrock (e.g., `us-east-1`)
+</ParamField>
+
+<ParamField path="AZURE_OPENAI_API_KEY" type="string">
+  Azure OpenAI API key
+</ParamField>
+
+<ParamField path="AZURE_OPENAI_API_INSTANCE_NAME" type="string">
+  Azure OpenAI instance name
+</ParamField>
+
+<ParamField path="AZURE_OPENAI_API_DEPLOYMENT_NAME" type="string">
+  Azure OpenAI deployment name
+</ParamField>
+
+<ParamField path="AZURE_OPENAI_API_VERSION" type="string">
+  Azure OpenAI API version (e.g., `2024-02-01`)
+</ParamField>
+
+## Provider Examples
+
+<Tabs>
+  <Tab title="OpenAI">
+    ### OpenAI (Default)
+    
+    ```bash
+    OPENAI_API_KEY="sk-proj-your-openai-api-key" \
+    DOCS_MCP_EMBEDDING_MODEL="text-embedding-3-small" \
+    npx @arabold/docs-mcp-server@latest
+    ```
+    
+    <Info>
+      `text-embedding-3-small` is the default and provides the best balance of quality and cost.
+    </Info>
+  </Tab>
+  
+  <Tab title="Ollama">
+    ### Ollama (Local)
+    
+    Run local models compatible with the OpenAI API format.
+    
+    <Steps>
+      <Step title="Start Ollama">
+        ```bash
+        ollama serve
+        ```
+      </Step>
+      
+      <Step title="Pull embedding model">
+        ```bash
+        ollama pull nomic-embed-text
+        ```
+      </Step>
+      
+      <Step title="Configure server">
+        ```bash
+        OPENAI_API_KEY="ollama" \
+        OPENAI_API_BASE="http://localhost:11434/v1" \
+        DOCS_MCP_EMBEDDING_MODEL="openai:nomic-embed-text" \
+        npx @arabold/docs-mcp-server@latest
+        ```
+      </Step>
+    </Steps>
+    
+    <Tip>
+      Ollama provides completely free, local embeddings with no API costs.
+    </Tip>
+  </Tab>
+  
+  <Tab title="LM Studio">
+    ### LM Studio (Local)
+    
+    Connect to LM Studio's local inference server.
+    
+    ```bash
+    OPENAI_API_KEY="lmstudio" \
+    OPENAI_API_BASE="http://localhost:1234/v1" \
+    DOCS_MCP_EMBEDDING_MODEL="text-embedding-qwen3-embedding-4b" \
+    npx @arabold/docs-mcp-server@latest
+    ```
+  </Tab>
+  
+  <Tab title="Google Gemini">
+    ### Google Gemini
+    
+    Use Google's Gemini API directly.
+    
+    ```bash
+    GOOGLE_API_KEY="your-google-api-key" \
+    DOCS_MCP_EMBEDDING_MODEL="gemini:embedding-001" \
+    npx @arabold/docs-mcp-server@latest
+    ```
+  </Tab>
+  
+  <Tab title="Vertex AI">
+    ### Google Vertex AI
+    
+    For enterprise GCP deployments.
+    
+    ```bash
+    GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/gcp-service-account.json" \
+    DOCS_MCP_EMBEDDING_MODEL="vertex:text-embedding-004" \
+    npx @arabold/docs-mcp-server@latest
+    ```
+  </Tab>
+  
+  <Tab title="AWS Bedrock">
+    ### AWS Bedrock
+    
+    Use Amazon Titan or other Bedrock-hosted models.
+    
+    ```bash
+    AWS_ACCESS_KEY_ID="your-aws-access-key-id" \
+    AWS_SECRET_ACCESS_KEY="your-aws-secret-access-key" \
+    AWS_REGION="us-east-1" \
+    DOCS_MCP_EMBEDDING_MODEL="aws:amazon.titan-embed-text-v1" \
+    npx @arabold/docs-mcp-server@latest
+    ```
+  </Tab>
+  
+  <Tab title="Azure OpenAI">
+    ### Azure OpenAI
+    
+    Connect to your private Azure OpenAI deployment.
+    
+    ```bash
+    AZURE_OPENAI_API_KEY="your-azure-openai-api-key" \
+    AZURE_OPENAI_API_INSTANCE_NAME="your-instance-name" \
+    AZURE_OPENAI_API_DEPLOYMENT_NAME="your-deployment-name" \
+    AZURE_OPENAI_API_VERSION="2024-02-01" \
+    DOCS_MCP_EMBEDDING_MODEL="microsoft:text-embedding-ada-002" \
+    npx @arabold/docs-mcp-server@latest
+    ```
+  </Tab>
+</Tabs>
+
+## Choosing an Embedding Model
+
+<CardGroup cols={2}>
+  <Card title="Best for Cost" icon="dollar-sign">
+    **Ollama (Local)**
+    
+    Free, runs on your machine, no API costs
+  </Card>
+  <Card title="Best for Quality" icon="star">
+    **OpenAI text-embedding-3-large**
+    
+    Highest quality embeddings, more expensive
+  </Card>
+  <Card title="Best Balance" icon="balance-scale">
+    **OpenAI text-embedding-3-small**
+    
+    Default option, good quality, reasonable cost
+  </Card>
+  <Card title="Enterprise" icon="building">
+    **Azure OpenAI or Vertex AI**
+    
+    Private deployments with SLAs
+  </Card>
+</CardGroup>
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="Vector Dimensions">
+    Different models produce embeddings with different dimensions:
+    
+    - `text-embedding-3-small`: 1536 dimensions
+    - `text-embedding-3-large`: 3072 dimensions
+    - `nomic-embed-text`: 768 dimensions
+    
+    Higher dimensions generally mean better quality but more storage and slower search.
+  </Accordion>
+  
+  <Accordion title="Batch Processing">
+    The server batches embedding requests to optimize API usage. Default batch size is 100 documents.
+    
+    Configure with:
+    ```bash
+    DOCS_MCP_EMBEDDINGS_BATCH_SIZE=50
+    ```
+  </Accordion>
+  
+  <Accordion title="Local vs Cloud">
+    **Local models (Ollama, LM Studio):**
+    - Free, no rate limits
+    - Slower on CPU, faster with GPU
+    - No internet required
+    
+    **Cloud models (OpenAI, Gemini, etc.):**
+    - Fast processing
+    - Rate limits and costs
+    - Internet required
+  </Accordion>
+</AccordionGroup>
+
+## Switching Models
+
+<Warning>
+  Changing the embedding model requires **re-indexing all documentation** because embeddings from different models are not compatible.
+</Warning>
+
+To switch models:
+
+<Steps>
+  <Step title="Remove existing documentation">
+    ```bash
+    npx @arabold/docs-mcp-server@latest remove <library-name>
+    ```
+  </Step>
+  
+  <Step title="Configure new model">
+    Set the new `DOCS_MCP_EMBEDDING_MODEL` and provider credentials
+  </Step>
+  
+  <Step title="Re-scrape documentation">
+    ```bash
+    npx @arabold/docs-mcp-server@latest scrape <library> <url>
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Authentication Errors">
+    **Problem:** `401 Unauthorized` or `Invalid API key`
+    
+    **Solution:**
+    - Verify your API key is correct
+    - Check environment variable names match exactly
+    - For Ollama, use any non-empty string as the API key
+  </Accordion>
+  
+  <Accordion title="Connection Errors">
+    **Problem:** `ECONNREFUSED` or connection timeout
+    
+    **Solution:**
+    - For Ollama: Ensure `ollama serve` is running
+    - Check `OPENAI_API_BASE` URL is correct
+    - Verify firewall settings
+  </Accordion>
+  
+  <Accordion title="Model Not Found">
+    **Problem:** Model name not recognized
+    
+    **Solution:**
+    - Check the model name matches exactly (case-sensitive)
+    - For Ollama: Pull the model first with `ollama pull <model-name>`
+    - Verify the provider prefix (e.g., `openai:`, `vertex:`, `gemini:`)
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Scraping Sources" icon="globe" href="/guides/scraping-sources">
+    Learn how to index documentation from various sources
+  </Card>
+  <Card title="Search Documentation" icon="magnifying-glass" href="/guides/searching-docs">
+    Master search queries to leverage your embeddings
+  </Card>
+  <Card title="Configuration" icon="gear" href="/setup/configuration">
+    Explore all configuration options
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/cli/overview">
+    Complete CLI command reference
+  </Card>
+</CardGroup>

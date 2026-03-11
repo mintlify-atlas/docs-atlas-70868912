@@ -1,0 +1,322 @@
+---
+title: Global Options
+description: Command-line options available for all commands
+---
+
+Global options can be used with any CLI command and control logging, configuration, and storage behavior.
+
+## Logging Options
+
+<ParamField path="--verbose" type="boolean" default="false">
+  Enable verbose (debug) logging. Shows detailed operational information including:
+  - Configuration loading
+  - Service initialization
+  - API requests and responses
+  - Internal state changes
+  
+  Mutually exclusive with `--silent`.
+  
+  **Example:**
+  ```bash
+  docs-mcp-server --verbose scrape react https://react.dev
+  ```
+</ParamField>
+
+<ParamField path="--silent" type="boolean" default="false">
+  Disable all logging except errors. Useful for:
+  - Running in cron jobs
+  - Piping output to other commands
+  - Minimal console output
+  
+  Mutually exclusive with `--verbose`.
+  
+  **Example:**
+  ```bash
+  docs-mcp-server --silent list > libraries.json
+  ```
+</ParamField>
+
+### Log Levels
+
+The logging system has four levels:
+
+1. **ERROR** (always shown)
+   - Critical failures
+   - Configuration errors
+   - Unrecoverable issues
+
+2. **WARN** (default)
+   - Recoverable issues
+   - Deprecated features
+   - Configuration warnings
+
+3. **INFO** (default)
+   - Startup messages
+   - Command completion
+   - Status updates
+
+4. **DEBUG** (requires `--verbose`)
+   - Service initialization
+   - Request details
+   - Internal operations
+
+**Examples:**
+
+```bash
+# Default: INFO and above
+docs-mcp-server list
+
+# Verbose: All levels
+docs-mcp-server --verbose list
+
+# Silent: ERROR only
+docs-mcp-server --silent list
+```
+
+## Configuration Options
+
+<ParamField path="--config" type="string">
+  Path to configuration file. Supports YAML and JSON formats.
+  
+  When specified:
+  - The configuration file is loaded in **read-only mode**
+  - `config set` commands will fail
+  - Useful for shared or versioned configurations
+  
+  When omitted:
+  - Uses the default system configuration path
+  - Configuration can be modified via `config set`
+  - Auto-saves changes on updates
+  
+  **Default locations:**
+  - Linux: `~/.config/docs-mcp-server/config.yaml`
+  - macOS: `~/Library/Application Support/docs-mcp-server/config.yaml`
+  - Windows: `%APPDATA%\docs-mcp-server\config.yaml`
+  
+  **Examples:**
+  ```bash
+  # Use custom config file
+  docs-mcp-server --config /path/to/config.yaml scrape mylib https://example.com
+  
+  # Use config from environment variable
+  export DOCS_MCP_CONFIG=/etc/docs-mcp/config.yaml
+  docs-mcp-server scrape mylib https://example.com
+  ```
+</ParamField>
+
+## Storage Options
+
+<ParamField path="--store-path" type="string">
+  Custom path for data storage directory. Stores:
+  - SQLite database
+  - Vector embeddings
+  - Indexed documents
+  - ETag cache
+  - Analytics data (if telemetry enabled)
+  
+  **Default locations:**
+  - Linux: `~/.local/share/docs-mcp-server`
+  - macOS: `~/Library/Application Support/docs-mcp-server`
+  - Windows: `%LOCALAPPDATA%\docs-mcp-server`
+  
+  The directory structure:
+  ```
+  store-path/
+  ├── docs.db           # SQLite database
+  ├── embeddings/       # Vector storage
+  └── analytics/        # Telemetry data
+  ```
+  
+  **Examples:**
+  ```bash
+  # Use custom storage path
+  docs-mcp-server --store-path /mnt/data/docs scrape react https://react.dev
+  
+  # Use environment variable
+  export DOCS_MCP_STORE_PATH=/mnt/data/docs
+  docs-mcp-server scrape react https://react.dev
+  
+  # Docker with volume mount
+  docker run -v /host/data:/data \
+    ghcr.io/arabold/docs-mcp-server \
+    --store-path /data \
+    scrape react https://react.dev
+  ```
+</ParamField>
+
+## Telemetry Options
+
+<ParamField path="--telemetry" type="boolean">
+  Enable or disable telemetry collection. Telemetry helps improve the tool by collecting:
+  - Command usage statistics
+  - Error reports
+  - Performance metrics
+  
+  **No personal data or documentation content is collected.**
+  
+  To disable telemetry:
+  ```bash
+  # Via flag
+  docs-mcp-server --no-telemetry scrape mylib https://example.com
+  
+  # Via environment variable (persistent)
+  export DOCS_MCP_TELEMETRY=false
+  docs-mcp-server scrape mylib https://example.com
+  
+  # Via config file (persistent)
+  docs-mcp-server config set app.telemetryEnabled false
+  ```
+  
+  To enable telemetry:
+  ```bash
+  # Via flag
+  docs-mcp-server --telemetry scrape mylib https://example.com
+  
+  # Via environment variable
+  export DOCS_MCP_TELEMETRY=true
+  
+  # Via config file
+  docs-mcp-server config set app.telemetryEnabled true
+  ```
+</ParamField>
+
+## Display Options
+
+<ParamField path="--logo" type="boolean" default="true">
+  Show ASCII art logo on startup. Applies to server commands:
+  - Default command (unified server)
+  - `mcp` command
+  - `web` command
+  - `worker` command
+  
+  To disable:
+  ```bash
+  docs-mcp-server --no-logo
+  ```
+</ParamField>
+
+## Help and Version
+
+<ParamField path="--help, -h" type="boolean">
+  Display help information for a command.
+  
+  **Examples:**
+  ```bash
+  # General help
+  docs-mcp-server --help
+  
+  # Command-specific help
+  docs-mcp-server scrape --help
+  docs-mcp-server config --help
+  ```
+</ParamField>
+
+<ParamField path="--version" type="boolean">
+  Display version information.
+  
+  **Example:**
+  ```bash
+  docs-mcp-server --version
+  # Output: 1.2.3
+  ```
+</ParamField>
+
+## Option Precedence
+
+When the same setting is specified in multiple ways, the precedence order is:
+
+1. **CLI flags** (highest priority)
+2. **Environment variables**
+3. **Configuration file**
+4. **Built-in defaults** (lowest priority)
+
+**Example:**
+
+```bash
+# config.yaml has: telemetryEnabled: true
+# Environment has: DOCS_MCP_TELEMETRY=false
+# CLI flag: --telemetry
+
+docs-mcp-server --telemetry list
+# Result: telemetry ENABLED (CLI flag wins)
+
+export DOCS_MCP_TELEMETRY=false
+docs-mcp-server list
+# Result: telemetry DISABLED (env var wins over config file)
+```
+
+## Combining Options
+
+Global options can be combined with any command:
+
+```bash
+# Multiple global options
+docs-mcp-server --verbose --no-telemetry --store-path /data scrape react https://react.dev
+
+# With command-specific options
+docs-mcp-server --verbose scrape react https://react.dev --max-pages 500
+
+# Order doesn't matter (global options before or after command)
+docs-mcp-server scrape --verbose react https://react.dev
+```
+
+## Common Patterns
+
+### Development Setup
+
+```bash
+# Verbose logging, no logo, custom storage
+docs-mcp-server --verbose --no-logo --store-path ./dev-data scrape mylib https://example.com
+```
+
+### Production Setup
+
+```bash
+# Silent mode, shared config, persistent storage
+docs-mcp-server --silent --config /etc/docs-mcp/config.yaml --store-path /var/lib/docs-mcp
+```
+
+### CI/CD Pipeline
+
+```bash
+# Disable telemetry, silent output, custom storage
+docs-mcp-server --no-telemetry --silent --store-path /tmp/docs list > libraries.json
+```
+
+### Docker Container
+
+```bash
+# Mount volumes for config and data
+docker run \
+  -v /host/config:/config \
+  -v /host/data:/data \
+  ghcr.io/arabold/docs-mcp-server \
+  --config /config/config.yaml \
+  --store-path /data \
+  scrape mylib https://example.com
+```
+
+## Error Handling
+
+**Mutually Exclusive Options**
+
+```bash
+docs-mcp-server --verbose --silent list
+# ❌ Arguments verbose and silent are mutually exclusive
+```
+
+**Invalid Paths**
+
+```bash
+docs-mcp-server --config /nonexistent/config.yaml list
+# ⚠️ Config file not found, using defaults
+
+docs-mcp-server --store-path /readonly/dir scrape mylib https://example.com
+# ❌ Cannot write to storage directory: Permission denied
+```
+
+## See Also
+
+- [Environment Variables](/cli/environment-variables) - Configure via environment
+- [config Command](/cli/config) - Manage configuration
+- [CLI Overview](/cli/overview) - Complete CLI guide

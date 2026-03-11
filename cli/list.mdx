@@ -1,0 +1,167 @@
+---
+title: list
+description: List all indexed libraries and their available versions
+---
+
+## Usage
+
+```bash
+docs-mcp-server list [options]
+```
+
+## Options
+
+<ParamField path="--server-url" type="string">
+  URL of external pipeline worker RPC endpoint (e.g., `http://localhost:8080/api`).
+  
+  When specified, lists libraries from the remote worker instead of local storage.
+</ParamField>
+
+## Examples
+
+### List Local Libraries
+
+```bash
+# Show all indexed libraries
+docs-mcp-server list
+```
+
+### List Remote Libraries
+
+```bash
+# Query remote worker for libraries
+docs-mcp-server list --server-url http://worker.example.com:8080/api
+```
+
+## Output
+
+The command returns a JSON array of libraries with their versions:
+
+```json
+[
+  {
+    "library": "react",
+    "versions": [
+      {
+        "version": "18.0.0",
+        "documentCount": 342,
+        "lastUpdated": "2024-01-15T10:30:00Z"
+      },
+      {
+        "version": "17.0.2",
+        "documentCount": 298,
+        "lastUpdated": "2023-12-10T14:20:00Z"
+      }
+    ]
+  },
+  {
+    "library": "typescript",
+    "versions": [
+      {
+        "version": "5.3.3",
+        "documentCount": 567,
+        "lastUpdated": "2024-01-20T09:15:00Z"
+      }
+    ]
+  }
+]
+```
+
+## Output Fields
+
+<ParamField path="library" type="string">
+  Name of the indexed library
+</ParamField>
+
+<ParamField path="versions" type="array">
+  Array of version objects for this library
+</ParamField>
+
+<ParamField path="versions[].version" type="string">
+  Version identifier (e.g., "18.0.0")
+</ParamField>
+
+<ParamField path="versions[].documentCount" type="number">
+  Number of documents indexed for this version
+</ParamField>
+
+<ParamField path="versions[].lastUpdated" type="string">
+  ISO 8601 timestamp of when this version was last updated
+</ParamField>
+
+## Use Cases
+
+### Check Available Libraries
+
+Verify what documentation is available before searching:
+
+```bash
+docs-mcp-server list
+# Then search a library from the output
+docs-mcp-server search react "hooks"
+```
+
+### Verify Scraping Success
+
+After scraping, confirm the library was indexed:
+
+```bash
+docs-mcp-server scrape mylib https://docs.example.com
+docs-mcp-server list
+# Should show 'mylib' in output
+```
+
+### Check Document Counts
+
+Verify how many documents were indexed:
+
+```json
+{
+  "library": "react",
+  "versions": [
+    {
+      "version": "18.0.0",
+      "documentCount": 342  // 342 pages indexed
+    }
+  ]
+}
+```
+
+### Monitor Multiple Versions
+
+Track different versions of the same library:
+
+```json
+{
+  "library": "react",
+  "versions": [
+    {"version": "18.0.0", "documentCount": 342},
+    {"version": "17.0.2", "documentCount": 298},
+    {"version": "16.14.0", "documentCount": 276}
+  ]
+}
+```
+
+## Empty Index
+
+If no libraries are indexed, the output is an empty array:
+
+```json
+[]
+```
+
+To add libraries, use the [scrape](/cli/scrape) command:
+
+```bash
+docs-mcp-server scrape react https://react.dev/reference/react
+```
+
+## Performance
+
+The `list` command is fast and does not require embedding model initialization. It only queries metadata from the document store.
+
+## See Also
+
+- [scrape](/cli/scrape) - Add libraries to the index
+- [remove](/cli/remove) - Remove libraries from the index
+- [search](/cli/search) - Query indexed libraries

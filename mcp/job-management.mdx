@@ -1,0 +1,634 @@
+---
+title: Job Management Tools
+description: Monitor and control scraping jobs with list_jobs, get_job_info, and cancel_job
+---
+
+The job management tools allow you to monitor and control asynchronous scraping operations.
+
+<Warning>
+These tools are **disabled in read-only mode**. Configure `readOnly: false` to enable job management.
+</Warning>
+
+## list_jobs
+
+List all indexing jobs with optional status filtering.
+
+**MCP Tool Name:** `list_jobs`
+
+**Source:** `src/tools/ListJobsTool.ts`
+
+### Parameters
+
+<ParamField path="status" type="PipelineJobStatus" optional>
+  Filter jobs by status. Valid values:
+  - `"queued"` - Job is waiting to start
+  - `"running"` - Job is actively processing
+  - `"completed"` - Job finished successfully
+  - `"failed"` - Job encountered an error
+  - `"cancelling"` - Job is in the process of being cancelled
+  - `"cancelled"` - Job was successfully cancelled
+</ParamField>
+
+### Response Structure
+
+<ResponseField name="jobs" type="JobInfo[]">
+  Array of job information objects
+  
+  <ResponseField name="id" type="string">
+    Job UUID
+  </ResponseField>
+  
+  <ResponseField name="library" type="string">
+    Library name being indexed
+  </ResponseField>
+  
+  <ResponseField name="version" type="string | null">
+    Version being indexed (null for unversioned)
+  </ResponseField>
+  
+  <ResponseField name="status" type="PipelineJobStatus">
+    Current job status
+  </ResponseField>
+  
+  <ResponseField name="dbStatus" type="VersionStatus" optional>
+    Database status (may differ from pipeline status)
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="string">
+    ISO timestamp when job was created
+  </ResponseField>
+  
+  <ResponseField name="startedAt" type="string | null">
+    ISO timestamp when job started (null if not started)
+  </ResponseField>
+  
+  <ResponseField name="finishedAt" type="string | null">
+    ISO timestamp when job finished (null if still running)
+  </ResponseField>
+  
+  <ResponseField name="error" type="string | null">
+    Error message if job failed
+  </ResponseField>
+  
+  <ResponseField name="progress" type="object" optional>
+    Progress information (only present when job is running)
+    
+    <ResponseField name="pages" type="number">
+      Number of pages scraped so far
+    </ResponseField>
+    
+    <ResponseField name="totalPages" type="number">
+      Maximum pages configured
+    </ResponseField>
+    
+    <ResponseField name="totalDiscovered" type="number">
+      Total URLs discovered during crawling
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="updatedAt" type="string" optional>
+    ISO timestamp of last update
+  </ResponseField>
+  
+  <ResponseField name="errorMessage" type="string" optional>
+    Detailed error message from database
+  </ResponseField>
+</ResponseField>
+
+### TypeScript Types
+
+```typescript
+interface ListJobsInput {
+  status?: PipelineJobStatus;
+}
+
+interface ListJobsToolResponse {
+  jobs: JobInfo[];
+}
+
+interface JobInfo {
+  id: string;
+  library: string;
+  version: string | null;
+  status: PipelineJobStatus;
+  dbStatus?: VersionStatus;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  error: string | null;
+  progress?: {
+    pages: number;
+    totalPages: number;
+    totalDiscovered: number;
+  };
+  updatedAt?: string;
+  errorMessage?: string;
+}
+
+type PipelineJobStatus = 
+  | "queued" 
+  | "running" 
+  | "completed" 
+  | "failed" 
+  | "cancelling" 
+  | "cancelled";
+
+type VersionStatus = 
+  | "COMPLETED" 
+  | "IN_PROGRESS" 
+  | "FAILED" 
+  | "QUEUED" 
+  | "CANCELLED";
+```
+
+See `src/tools/GetJobInfoTool.ts:15-36` for the JobInfo type definition.
+
+### Example Requests
+
+#### List All Jobs
+
+```json
+{
+  "name": "list_jobs",
+  "arguments": {}
+}
+```
+
+#### List Running Jobs
+
+```json
+{
+  "name": "list_jobs",
+  "arguments": {
+    "status": "running"
+  }
+}
+```
+
+#### List Failed Jobs
+
+```json
+{
+  "name": "list_jobs",
+  "arguments": {
+    "status": "failed"
+  }
+}
+```
+
+### Example Response
+
+```json
+{
+  "jobs": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "library": "react",
+      "version": "18.2.0",
+      "status": "running",
+      "dbStatus": "IN_PROGRESS",
+      "createdAt": "2024-03-15T10:30:00.000Z",
+      "startedAt": "2024-03-15T10:30:05.000Z",
+      "finishedAt": null,
+      "error": null,
+      "progress": {
+        "pages": 45,
+        "totalPages": 100,
+        "totalDiscovered": 67
+      },
+      "updatedAt": "2024-03-15T10:35:12.000Z"
+    },
+    {
+      "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "library": "typescript",
+      "version": "5.4.2",
+      "status": "completed",
+      "dbStatus": "COMPLETED",
+      "createdAt": "2024-03-15T09:00:00.000Z",
+      "startedAt": "2024-03-15T09:00:03.000Z",
+      "finishedAt": "2024-03-15T09:15:42.000Z",
+      "error": null,
+      "updatedAt": "2024-03-15T09:15:42.000Z"
+    }
+  ]
+}
+```
+
+### MCP Output
+
+When called through MCP (see `src/mcp/mcpServer.ts:312`):
+
+```
+Current Jobs:
+
+- ID: 550e8400-e29b-41d4-a716-446655440000
+  Status: running
+  Library: react
+  Version: 18.2.0
+  Created: 2024-03-15T10:30:00.000Z
+  Started: 2024-03-15T10:30:05.000Z
+
+- ID: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+  Status: completed
+  Library: typescript
+  Version: 5.4.2
+  Created: 2024-03-15T09:00:00.000Z
+  Started: 2024-03-15T09:00:03.000Z
+  Finished: 2024-03-15T09:15:42.000Z
+```
+
+If no jobs found:
+
+```
+No jobs found.
+```
+
+---
+
+## get_job_info
+
+Get detailed information for a specific job.
+
+**MCP Tool Name:** `get_job_info`
+
+**Source:** `src/tools/GetJobInfoTool.ts`
+
+### Parameters
+
+<ParamField path="jobId" type="string" required>
+  UUID of the job to query
+</ParamField>
+
+### Response Structure
+
+<ResponseField name="job" type="JobInfo">
+  Complete job information (see JobInfo type above)
+</ResponseField>
+
+### TypeScript Types
+
+```typescript
+interface GetJobInfoInput {
+  jobId: string;
+}
+
+interface GetJobInfoToolResponse {
+  job: JobInfo;
+}
+```
+
+See `src/tools/GetJobInfoTool.ts:9-43` for complete type definitions.
+
+### Example Request
+
+```json
+{
+  "name": "get_job_info",
+  "arguments": {
+    "jobId": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### Example Response
+
+```json
+{
+  "job": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "library": "react",
+    "version": "18.2.0",
+    "status": "running",
+    "dbStatus": "IN_PROGRESS",
+    "createdAt": "2024-03-15T10:30:00.000Z",
+    "startedAt": "2024-03-15T10:30:05.000Z",
+    "finishedAt": null,
+    "error": null,
+    "progress": {
+      "pages": 45,
+      "totalPages": 100,
+      "totalDiscovered": 67
+    },
+    "updatedAt": "2024-03-15T10:35:12.000Z"
+  }
+}
+```
+
+### Error Cases
+
+**Invalid Job ID:**
+
+```json
+{
+  "error": "Job ID is required and must be a non-empty string."
+}
+```
+
+**Job Not Found:**
+
+```json
+{
+  "error": "Job with ID 550e8400-e29b-41d4-a716-446655440000 not found."
+}
+```
+
+### MCP Output
+
+When called through MCP (see `src/mcp/mcpServer.ts:357`):
+
+```
+Job Info:
+
+- ID: 550e8400-e29b-41d4-a716-446655440000
+  Status: running
+  Library: react@18.2.0
+  Created: 2024-03-15T10:30:00.000Z
+  Started: 2024-03-15T10:30:05.000Z
+```
+
+---
+
+## cancel_job
+
+Cancel a queued or running job.
+
+**MCP Tool Name:** `cancel_job`
+
+**Source:** `src/tools/CancelJobTool.ts`
+
+<Warning>
+This is a **destructive operation**. Cancelled jobs cannot be resumed.
+</Warning>
+
+### Parameters
+
+<ParamField path="jobId" type="string" required>
+  UUID of the job to cancel
+</ParamField>
+
+### Response Structure
+
+<ResponseField name="message" type="string">
+  Outcome message describing the cancellation result
+</ResponseField>
+
+<ResponseField name="finalStatus" type="string">
+  Final status of the job after cancellation attempt
+</ResponseField>
+
+### TypeScript Types
+
+```typescript
+interface CancelJobInput {
+  jobId: string;
+}
+
+interface CancelJobResult {
+  message: string;
+  finalStatus: string;
+}
+```
+
+See `src/tools/CancelJobTool.ts:9-22` for complete type definitions.
+
+### Example Request
+
+```json
+{
+  "name": "cancel_job",
+  "arguments": {
+    "jobId": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### Example Responses
+
+#### Successfully Cancelled
+
+```json
+{
+  "message": "Cancellation requested for job 550e8400-e29b-41d4-a716-446655440000. Current status: cancelling.",
+  "finalStatus": "cancelling"
+}
+```
+
+#### Already Completed
+
+```json
+{
+  "message": "Job 550e8400-e29b-41d4-a716-446655440000 is already completed. No action taken.",
+  "finalStatus": "completed"
+}
+```
+
+#### Already Failed
+
+```json
+{
+  "message": "Job 550e8400-e29b-41d4-a716-446655440000 is already failed. No action taken.",
+  "finalStatus": "failed"
+}
+```
+
+### Error Cases
+
+**Invalid Job ID:**
+
+```json
+{
+  "error": "Job ID is required and must be a non-empty string."
+}
+```
+
+**Job Not Found:**
+
+```json
+{
+  "error": "Job with ID 550e8400-e29b-41d4-a716-446655440000 not found."
+}
+```
+
+**Cancellation Failed:**
+
+```json
+{
+  "error": "Failed to cancel job 550e8400-e29b-41d4-a716-446655440000: Internal error."
+}
+```
+
+### MCP Output
+
+When called through MCP (see `src/mcp/mcpServer.ts:390`):
+
+```
+Cancellation requested for job 550e8400-e29b-41d4-a716-446655440000. Current status: cancelling.
+```
+
+### Implementation Details
+
+The tool checks job status before attempting cancellation:
+
+```typescript
+async execute(input: CancelJobInput): Promise<CancelJobResult> {
+  if (!input.jobId || typeof input.jobId !== "string" || input.jobId.trim() === "") {
+    throw new ValidationError(
+      "Job ID is required and must be a non-empty string.",
+      this.constructor.name,
+    );
+  }
+  
+  try {
+    // Retrieve the job first
+    const job = await this.pipeline.getJob(input.jobId);
+    
+    if (!job) {
+      throw new ToolError(
+        `Job with ID ${input.jobId} not found.`,
+        this.constructor.name,
+      );
+    }
+    
+    // Check if job is in a final state
+    if (
+      job.status === PipelineJobStatus.COMPLETED ||
+      job.status === PipelineJobStatus.FAILED ||
+      job.status === PipelineJobStatus.CANCELLED
+    ) {
+      return {
+        message: `Job ${input.jobId} is already ${job.status}. No action taken.`,
+        finalStatus: job.status,
+      };
+    }
+    
+    // Attempt cancellation
+    await this.pipeline.cancelJob(input.jobId);
+    
+    // Re-fetch to confirm status change
+    const updatedJob = await this.pipeline.getJob(input.jobId);
+    const finalStatus = updatedJob?.status ?? "UNKNOWN (job disappeared?)";
+    
+    return {
+      message: `Cancellation requested for job ${input.jobId}. Current status: ${finalStatus}.`,
+      finalStatus,
+    };
+  } catch (error) {
+    logger.error(`❌ Error cancelling job ${input.jobId}: ${error}`);
+    throw new ToolError(
+      `Failed to cancel job ${input.jobId}: ${error.message}`,
+      this.constructor.name,
+    );
+  }
+}
+```
+
+See `src/tools/CancelJobTool.ts:45` for the complete implementation.
+
+### Cancellation Behavior
+
+1. **Queued Jobs**: Removed from queue immediately, status becomes `cancelled`
+2. **Running Jobs**: Graceful shutdown initiated, status becomes `cancelling`
+3. **Final State Jobs**: No action taken, returns current status
+
+### Status Transitions
+
+```
+queued → cancelling → cancelled
+running → cancelling → cancelled
+
+completed (no change)
+failed (no change)
+cancelled (no change)
+```
+
+---
+
+## Resource Endpoints
+
+Job data is also available through MCP resources (when not in read-only mode):
+
+### `docs://jobs`
+
+List all jobs (supports `?status=<status>` query parameter).
+
+### `docs://jobs/{jobId}`
+
+Get a specific job by ID.
+
+See `src/mcp/mcpServer.ts:543-638` for resource implementation.
+
+---
+
+## Usage Examples
+
+### Monitor Job Progress
+
+```typescript
+// Start scraping
+const { jobId } = await scrapeDocs({
+  library: "react",
+  version: "18.2.0",
+  url: "https://react.dev/"
+});
+
+// Poll for completion
+let job;
+do {
+  await sleep(5000); // Wait 5 seconds
+  const result = await getJobInfo({ jobId });
+  job = result.job;
+  
+  if (job.progress) {
+    console.log(`Progress: ${job.progress.pages}/${job.progress.totalPages}`);
+  }
+} while (job.status === "running" || job.status === "queued");
+
+if (job.status === "completed") {
+  console.log("✅ Scraping completed successfully!");
+} else if (job.status === "failed") {
+  console.error(`❌ Scraping failed: ${job.error}`);
+}
+```
+
+### Cancel Long-Running Job
+
+```typescript
+// List running jobs
+const { jobs } = await listJobs({ status: "running" });
+
+// Find job taking too long
+const longRunningJob = jobs.find(job => {
+  const runtime = Date.now() - new Date(job.startedAt).getTime();
+  return runtime > 30 * 60 * 1000; // 30 minutes
+});
+
+if (longRunningJob) {
+  console.log(`Cancelling long-running job: ${longRunningJob.id}`);
+  await cancelJob({ jobId: longRunningJob.id });
+}
+```
+
+### Retry Failed Jobs
+
+```typescript
+// List failed jobs
+const { jobs } = await listJobs({ status: "failed" });
+
+// Retry each failed job
+for (const job of jobs) {
+  console.log(`Retrying ${job.library}@${job.version}`);
+  
+  // Get original scrape parameters (would need to be stored)
+  await scrapeDocs({
+    library: job.library,
+    version: job.version,
+    url: "...", // Original URL
+  });
+}
+```
+
+## Related Tools
+
+- [scrape_docs](/mcp/scrape-tool) - Start a scraping job
+- [refresh_version](/mcp/scrape-tool#refresh-version) - Re-scrape an existing version
+- [list_libraries](/mcp/list-libraries) - See what's indexed

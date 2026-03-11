@@ -1,0 +1,626 @@
+---
+title: Testing
+description: Testing strategy, patterns, and best practices for the Grounded Docs MCP Server
+---
+
+## Overview
+
+The project uses [Vitest](https://vitest.dev/) for all testing. Tests follow a behavior-driven approach, focusing on observable contracts rather than implementation details.
+
+## Testing Philosophy
+
+### Behavior-Driven Testing
+
+Test **what** the code does, not **how** it does it:
+
+**Bad:**
+```typescript
+// Testing implementation details
+it('should call parseMarkdown internally', () => {
+  const spy = vi.spyOn(parser, 'parseMarkdown');
+  processor.process(content);
+  expect(spy).toHaveBeenCalled(); // ❌ Implementation detail
+});
+```
+
+**Good:**
+```typescript
+// Testing observable behavior
+it('should convert markdown to HTML', () => {
+  const result = processor.process('# Title');
+  expect(result).toContain('<h1>Title</h1>'); // ✅ Observable output
+});
+```
+
+### Testing Pyramid
+
+Priority order:
+
+1. **E2E Tests** (Highest value) - Test complete user workflows
+2. **Integration Tests** - Test component interactions
+3. **Unit Tests** - Test complex logic only
+
+<Note>
+  Focus on E2E and integration tests for maximum confidence. Only unit test complex algorithms or edge cases.
+</Note>
+
+## Test File Organization
+
+### Single File Policy
+
+**One test file per source file:**
+
+```
+src/foo.ts → src/foo.test.ts
+```
+
+**Combine unit and integration tests** in the same file:
+
+```typescript
+// src/tools/SearchTool.test.ts
+import { describe, it, expect } from 'vitest';
+
+describe('SearchTool', () => {
+  // Unit tests
+  describe('validation', () => {
+    it('should reject empty library name', async () => {
+      // ...
+    });
+  });
+  
+  // Integration tests
+  describe('integration', () => {
+    it('should search across multiple documents', async () => {
+      // ...
+    });
+  });
+});
+```
+
+<Warning>
+  **Do NOT create**:
+  - `*.integration.test.ts` files
+  - `*.spec.ts` files
+  - `*.unit.test.ts` files
+  
+  All tests for a module go in one `*.test.ts` file.
+</Warning>
+
+### E2E Tests
+
+Place system-wide end-to-end tests in `test/` directory:
+
+```
+test/
+  pipeline-e2e.test.ts      # Pipeline end-to-end tests
+  scraper-e2e.test.ts       # Scraper end-to-end tests
+  search-e2e.test.ts        # Search end-to-end tests
+```
+
+## Running Tests
+
+### All Tests
+
+```bash
+npm test
+```
+
+### Watch Mode
+
+```bash
+npm run test:watch
+```
+
+### Coverage
+
+```bash
+npm run test:coverage
+```
+
+### Unit Tests Only
+
+```bash
+npm run test:unit
+```
+
+This runs only tests in the `src/` directory.
+
+### E2E Tests Only
+
+```bash
+npm run test:e2e
+```
+
+This automatically builds the project first (via `pretest:e2e`), then runs tests in the `test/` directory.
+
+### Single Test File
+
+```bash
+npx vitest run src/utils/config.test.ts
+```
+
+### Live Tests
+
+Run tests against real external services:
+
+```bash
+npm run test:live
+```
+
+<Warning>
+  Live tests hit real APIs and may be slow or rate-limited. Use sparingly.
+</Warning>
+
+## Writing Tests
+
+### Test Structure
+
+Use clear descriptive names:
+
+```typescript
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+describe('SearchTool', () => {
+  describe('execute', () => {
+    it('should return results for valid query', async () => {
+      // Arrange
+      const tool = new SearchTool(mockService);
+      const options = { library: 'react', query: 'hooks' };
+      
+      // Act
+      const result = await tool.execute(options);
+      
+      // Assert
+      expect(result.results).toHaveLength(5);
+      expect(result.results[0]).toHaveProperty('content');
+    });
+    
+    it('should throw ValidationError for empty query', async () => {
+      const tool = new SearchTool(mockService);
+      const options = { library: 'react', query: '' };
+      
+      await expect(tool.execute(options)).rejects.toThrow(ValidationError);
+    });
+  });
+});
+```
+
+### Isolation
+
+Each test should check **one** behavior:
+
+**Bad:**
+```typescript
+// Testing too many things
+it('should handle search workflow', async () => {
+  const result = await search({ library: 'react', query: 'hooks' });
+  expect(result.results).toBeDefined();
+  expect(result.results.length).toBeGreaterThan(0);
+  expect(result.results[0].score).toBeGreaterThan(0.5);
+  expect(result.metadata.totalFound).toBe(10);
+  expect(db.queries).toHaveLength(1);
+  // ❌ Too many assertions
+});
+```
+
+**Good:**
+```typescript
+// One behavior per test
+it('should return matching results', async () => {
+  const result = await search({ library: 'react', query: 'hooks' });
+  expect(result.results).toBeDefined();
+  expect(result.results.length).toBeGreaterThan(0);
+});
+
+it('should score results by relevance', async () => {
+  const result = await search({ library: 'react', query: 'hooks' });
+  expect(result.results[0].score).toBeGreaterThan(0.5);
+});
+
+it('should include result metadata', async () => {
+  const result = await search({ library: 'react', query: 'hooks' });
+  expect(result.metadata.totalFound).toBe(10);
+});
+```
+
+### Performance
+
+Keep unit tests fast:
+
+- **Target**: < 100ms per unit test
+- Use mocks for slow operations
+- Avoid real network calls
+- Minimize file I/O
+
+```typescript
+// Good: Fast mock
+it('should validate configuration', () => {
+  const config = { library: 'react', version: '18.0.0' };
+  expect(validateConfig(config)).toBe(true);
+  // Runs in < 1ms
+});
+
+// Bad: Slow integration test in unit test suite
+it('should scrape real website', async () => {
+  const result = await scraper.scrape('https://example.com');
+  expect(result).toBeDefined();
+  // ❌ Takes seconds, should be an E2E test
+});
+```
+
+## Mocking
+
+### Use Sparingly
+
+Prefer real dependencies when feasible:
+
+```typescript
+// Prefer real implementation
+import { SimpleMemoryCache } from '../utils/SimpleMemoryCache';
+
+it('should cache results', () => {
+  const cache = new SimpleMemoryCache(); // ✅ Use real cache
+  cache.set('key', 'value');
+  expect(cache.get('key')).toBe('value');
+});
+```
+
+### Mock External Dependencies
+
+Mock databases, APIs, and filesystem:
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+
+const mockDocService = {
+  search: vi.fn().mockResolvedValue({
+    results: [
+      { content: 'React Hooks', score: 0.95 }
+    ]
+  }),
+  listLibraries: vi.fn().mockResolvedValue([
+    { library: 'react', versions: [] }
+  ])
+};
+
+it('should delegate to document service', async () => {
+  const tool = new SearchTool(mockDocService);
+  await tool.execute({ library: 'react', query: 'hooks' });
+  
+  expect(mockDocService.search).toHaveBeenCalledWith(
+    expect.objectContaining({
+      library: 'react',
+      query: 'hooks'
+    })
+  );
+});
+```
+
+### vi.mock() Pattern
+
+```typescript
+import { vi } from 'vitest';
+
+vi.mock('../utils/logger', () => ({
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn()
+  }
+}));
+
+it('should log errors', async () => {
+  const { logger } = await import('../utils/logger');
+  
+  await expect(riskyOperation()).rejects.toThrow();
+  
+  expect(logger.error).toHaveBeenCalledWith(
+    expect.stringContaining('❌')
+  );
+});
+```
+
+## Test Environment
+
+### Node 22 Required
+
+All tests run in Node.js 22 environment.
+
+### Setup File
+
+Polyfills are provided in `test/setup-env.ts`:
+
+```typescript
+// test/setup-env.ts
+import { beforeAll } from 'vitest';
+
+beforeAll(() => {
+  // Setup global test environment
+  process.env.NODE_ENV = 'test';
+  process.env.LOG_LEVEL = 'error';
+});
+```
+
+### Environment Variables
+
+Tests automatically set:
+
+- `NODE_ENV=test`
+- `VITEST_WORKER_ID` (set by Vitest)
+- `LOG_LEVEL=error` (suppress logs in tests)
+
+## Common Patterns
+
+### Testing Async Functions
+
+```typescript
+it('should handle async operations', async () => {
+  const result = await asyncFunction();
+  expect(result).toBe('expected value');
+});
+
+it('should reject on error', async () => {
+  await expect(asyncFunction()).rejects.toThrow('Error message');
+});
+```
+
+### Testing Promises
+
+```typescript
+it('should resolve with data', () => {
+  return expect(fetchData()).resolves.toEqual({ data: 'value' });
+});
+
+it('should reject with error', () => {
+  return expect(fetchData()).rejects.toThrow(NetworkError);
+});
+```
+
+### Testing Error Cases
+
+```typescript
+import { ValidationError } from './errors';
+
+it('should throw ValidationError for invalid input', async () => {
+  const tool = new SearchTool(mockService);
+  
+  await expect(
+    tool.execute({ library: '', query: 'test' })
+  ).rejects.toThrow(ValidationError);
+  
+  await expect(
+    tool.execute({ library: '', query: 'test' })
+  ).rejects.toThrow('Library name is required');
+});
+```
+
+### Testing with Fixtures
+
+```typescript
+const FIXTURES = {
+  validConfig: {
+    library: 'react',
+    version: '18.0.0',
+    query: 'hooks'
+  },
+  invalidConfig: {
+    library: '',
+    query: ''
+  }
+};
+
+it('should accept valid config', () => {
+  expect(() => validate(FIXTURES.validConfig)).not.toThrow();
+});
+
+it('should reject invalid config', () => {
+  expect(() => validate(FIXTURES.invalidConfig)).toThrow();
+});
+```
+
+### beforeEach / afterEach
+
+```typescript
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+describe('DatabaseService', () => {
+  let db: Database;
+  
+  beforeEach(() => {
+    db = new Database(':memory:');
+    db.migrate();
+  });
+  
+  afterEach(() => {
+    db.close();
+  });
+  
+  it('should insert records', () => {
+    db.insert({ id: 1, name: 'Test' });
+    expect(db.count()).toBe(1);
+  });
+});
+```
+
+## Testing Tools Layer
+
+Tools should have comprehensive tests:
+
+```typescript
+// src/tools/SearchTool.test.ts
+import { describe, it, expect } from 'vitest';
+import { SearchTool } from './SearchTool';
+import { ValidationError } from './errors';
+
+describe('SearchTool', () => {
+  describe('validation', () => {
+    it('should require library name', async () => {
+      const tool = new SearchTool(mockService);
+      await expect(
+        tool.execute({ library: '', query: 'test' })
+      ).rejects.toThrow(ValidationError);
+    });
+    
+    it('should require query', async () => {
+      const tool = new SearchTool(mockService);
+      await expect(
+        tool.execute({ library: 'react', query: '' })
+      ).rejects.toThrow(ValidationError);
+    });
+    
+    it('should validate limit range', async () => {
+      const tool = new SearchTool(mockService);
+      await expect(
+        tool.execute({ library: 'react', query: 'test', limit: 200 })
+      ).rejects.toThrow('Limit must be a number between 1 and 100');
+    });
+  });
+  
+  describe('search', () => {
+    it('should return search results', async () => {
+      const mockService = {
+        search: vi.fn().mockResolvedValue([{ content: 'test' }])
+      };
+      
+      const tool = new SearchTool(mockService);
+      const result = await tool.execute({
+        library: 'react',
+        query: 'hooks'
+      });
+      
+      expect(result.results).toBeDefined();
+      expect(mockService.search).toHaveBeenCalled();
+    });
+  });
+});
+```
+
+## E2E Testing
+
+End-to-end tests verify complete workflows:
+
+```typescript
+// test/search-e2e.test.ts
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { setupTestEnvironment, teardownTestEnvironment } from './helpers';
+
+describe('Search E2E', () => {
+  let server: AppServer;
+  let db: Database;
+  
+  beforeAll(async () => {
+    ({ server, db } = await setupTestEnvironment());
+    
+    // Index test documentation
+    await server.scrape({
+      library: 'react',
+      version: '18.0.0',
+      url: 'https://react.dev'
+    });
+  });
+  
+  afterAll(async () => {
+    await teardownTestEnvironment({ server, db });
+  });
+  
+  it('should search indexed documentation', async () => {
+    const result = await server.search({
+      library: 'react',
+      query: 'useState hook'
+    });
+    
+    expect(result.results.length).toBeGreaterThan(0);
+    expect(result.results[0].content).toContain('useState');
+  });
+});
+```
+
+## Coverage Goals
+
+While coverage isn't the only metric, aim for:
+
+- **Tools Layer**: 90%+ coverage
+- **Core Services**: 80%+ coverage
+- **Utilities**: 85%+ coverage
+- **UI Components**: 60%+ coverage
+
+```bash
+npm run test:coverage
+```
+
+## Debugging Tests
+
+### Run Single Test
+
+```bash
+npx vitest run src/tools/SearchTool.test.ts
+```
+
+### Use .only
+
+```typescript
+it.only('should test this specific case', () => {
+  // Only this test will run
+});
+
+describe.only('SearchTool', () => {
+  // Only tests in this describe block
+});
+```
+
+<Warning>
+  Remove `.only` before committing! Pre-commit hooks will fail if `.only` is present.
+</Warning>
+
+### Console Logging
+
+```typescript
+it('should debug test', () => {
+  const data = processData();
+  console.log('Debug:', data); // ✅ Shows in test output
+  expect(data).toBeDefined();
+});
+```
+
+## Best Practices Summary
+
+<AccordionGroup>
+  <Accordion title="Test Organization">
+    - One test file per source file (`foo.ts` → `foo.test.ts`)
+    - Combine unit and integration tests in same file
+    - E2E tests in `test/` directory
+    - Use descriptive test names
+  </Accordion>
+
+  <Accordion title="Test Quality">
+    - Test behavior, not implementation
+    - One behavior per test
+    - Keep unit tests fast (< 100ms)
+    - Use real dependencies when possible
+  </Accordion>
+
+  <Accordion title="Mocking">
+    - Mock external dependencies (DB, API, filesystem)
+    - Don't mock internal code
+    - Use `vi.fn()` for simple mocks
+    - Use `vi.mock()` for module mocks
+  </Accordion>
+
+  <Accordion title="Coverage">
+    - Focus on critical paths
+    - Don't chase 100% coverage
+    - E2E tests provide most value
+    - Test edge cases and errors
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Code Style Guide" icon="code" href="/contributing/code-style">
+    Learn about code conventions
+  </Card>
+  <Card title="Architecture Patterns" icon="sitemap" href="/contributing/architecture-patterns">
+    Understand system design
+  </Card>
+</CardGroup>

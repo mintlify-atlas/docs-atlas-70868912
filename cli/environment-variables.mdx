@@ -1,0 +1,600 @@
+---
+title: Environment Variables
+description: Configure Grounded Docs MCP Server using environment variables
+---
+
+All configuration options can be set via environment variables, which take precedence over configuration files but are overridden by CLI flags.
+
+## Naming Convention
+
+Environment variables follow this pattern:
+
+```
+DOCS_MCP_<PATH>
+```
+
+Where `<PATH>` is the configuration path in `UPPER_SNAKE_CASE`.
+
+**Examples:**
+
+| Config Path | Environment Variable |
+|-------------|---------------------|
+| `scraper.maxPages` | `DOCS_MCP_SCRAPER_MAX_PAGES` |
+| `server.ports.default` | `DOCS_MCP_SERVER_PORTS_DEFAULT` |
+| `app.telemetryEnabled` | `DOCS_MCP_TELEMETRY` |
+| `scraper.document.maxSize` | `DOCS_MCP_SCRAPER_DOCUMENT_MAX_SIZE` |
+
+## Core Application Variables
+
+### General Settings
+
+<ParamField path="DOCS_MCP_STORE_PATH" type="string">
+  Path to data storage directory. Stores SQLite database, embeddings, and cached data.
+  
+  **Default:**
+  - Linux: `~/.local/share/docs-mcp-server`
+  - macOS: `~/Library/Application Support/docs-mcp-server`
+  - Windows: `%LOCALAPPDATA%\docs-mcp-server`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_STORE_PATH=/mnt/data/docs
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_CONFIG" type="string">
+  Path to configuration file (YAML or JSON). When set, the config is read-only.
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_CONFIG=/etc/docs-mcp-server/config.yaml
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_TELEMETRY" type="boolean">
+  Enable or disable telemetry collection.
+  
+  **Default:** `true`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_TELEMETRY=false
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_READ_ONLY" type="boolean">
+  Run in read-only mode (disable write tools and job scheduling).
+  
+  **Default:** `false`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_READ_ONLY=true
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_EMBEDDING_MODEL" type="string">
+  Default embedding model in format `provider:model-name`.
+  
+  **Examples:**
+  - `openai:text-embedding-3-small`
+  - `vertex:text-embedding-004`
+  - `bedrock:amazon.titan-embed-text-v1`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_EMBEDDING_MODEL=openai:text-embedding-3-small
+  ```
+</ParamField>
+
+### Logging
+
+<ParamField path="LOG_LEVEL" type="string">
+  Set log level directly. Overrides `--verbose` and `--silent` flags.
+  
+  **Values:** `DEBUG`, `INFO`, `WARN`, `ERROR`
+  
+  **Default:** `INFO`
+  
+  **Example:**
+  ```bash
+  export LOG_LEVEL=DEBUG
+  ```
+</ParamField>
+
+## Server Configuration
+
+<ParamField path="DOCS_MCP_PROTOCOL" type="string">
+  Server protocol for MCP communication.
+  
+  **Values:** `auto`, `stdio`, `http`
+  
+  **Default:** `auto`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_PROTOCOL=http
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_HOST" type="string">
+  Host to bind the server to.
+  
+  **Default:** `localhost`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_HOST=0.0.0.0
+  ```
+</ParamField>
+
+<ParamField path="HOST" type="string">
+  Alternative to `DOCS_MCP_HOST`. Lower precedence.
+  
+  **Example:**
+  ```bash
+  export HOST=0.0.0.0
+  ```
+</ParamField>
+
+### Port Configuration
+
+<ParamField path="DOCS_MCP_PORT" type="number">
+  Default port for all services (unless overridden by specific port variables).
+  
+  **Default:** `8080`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_PORT=3000
+  ```
+</ParamField>
+
+<ParamField path="PORT" type="number">
+  Alternative to `DOCS_MCP_PORT`. Lower precedence (commonly used in hosting platforms).
+  
+  **Example:**
+  ```bash
+  export PORT=8080
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_WEB_PORT" type="number">
+  Port for web interface. Falls back to `DOCS_MCP_PORT` if not set.
+  
+  **Default:** `8082`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_WEB_PORT=3001
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_SERVER_PORTS_DEFAULT" type="number">
+  Explicit default port (highest precedence for default port).
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_SERVER_PORTS_DEFAULT=9000
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_SERVER_PORTS_WORKER" type="number">
+  Port for pipeline worker service.
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_SERVER_PORTS_WORKER=8081
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_SERVER_PORTS_MCP" type="number">
+  Port for MCP server.
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_SERVER_PORTS_MCP=8082
+  ```
+</ParamField>
+
+## Authentication
+
+<ParamField path="DOCS_MCP_AUTH_ENABLED" type="boolean">
+  Enable OAuth2/OIDC authentication for MCP endpoints.
+  
+  **Default:** `false`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_AUTH_ENABLED=true
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_AUTH_ISSUER_URL" type="string">
+  OAuth2/OIDC issuer URL for authentication.
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_AUTH_ISSUER_URL=https://auth.example.com
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_AUTH_AUDIENCE" type="string">
+  JWT audience claim (identifies the protected resource).
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_AUTH_AUDIENCE=https://api.example.com
+  ```
+</ParamField>
+
+## Scraper Configuration
+
+<ParamField path="DOCS_MCP_SCRAPER_MAX_PAGES" type="number">
+  Maximum number of pages to scrape per job.
+  
+  **Default:** `1000`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_SCRAPER_MAX_PAGES=2000
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_SCRAPER_MAX_DEPTH" type="number">
+  Maximum navigation depth from starting URL.
+  
+  **Default:** `10`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_SCRAPER_MAX_DEPTH=5
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_SCRAPER_MAX_CONCURRENCY" type="number">
+  Maximum concurrent page requests.
+  
+  **Default:** `5`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_SCRAPER_MAX_CONCURRENCY=10
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_SCRAPER_DOCUMENT_MAX_SIZE" type="number">
+  Maximum document size in bytes. Documents larger than this are rejected.
+  
+  **Default:** `10485760` (10 MB)
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_SCRAPER_DOCUMENT_MAX_SIZE=52428800  # 50 MB
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_SCRAPER_DOCUMENT_MIN_SIZE" type="number">
+  Minimum document size in bytes. Documents smaller than this are rejected.
+  
+  **Default:** `100`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_SCRAPER_DOCUMENT_MIN_SIZE=500
+  ```
+</ParamField>
+
+## Embedding Provider Configuration
+
+Each embedding provider has its own environment variables for authentication.
+
+### OpenAI
+
+<ParamField path="OPENAI_API_KEY" type="string">
+  OpenAI API key for embedding generation.
+  
+  **Required for:** `openai:*` embedding models
+  
+  **Example:**
+  ```bash
+  export OPENAI_API_KEY=sk-...
+  export DOCS_MCP_EMBEDDING_MODEL=openai:text-embedding-3-small
+  ```
+</ParamField>
+
+<ParamField path="OPENAI_API_BASE" type="string">
+  Custom OpenAI API base URL (for OpenAI-compatible services).
+  
+  **Example:**
+  ```bash
+  export OPENAI_API_BASE=https://api.custom.com/v1
+  ```
+</ParamField>
+
+### Google Vertex AI
+
+<ParamField path="GOOGLE_APPLICATION_CREDENTIALS" type="string">
+  Path to Google Cloud service account JSON key file.
+  
+  **Required for:** `vertex:*` embedding models
+  
+  **Example:**
+  ```bash
+  export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+  export DOCS_MCP_EMBEDDING_MODEL=vertex:text-embedding-004
+  ```
+</ParamField>
+
+### Google Generative AI
+
+<ParamField path="GOOGLE_API_KEY" type="string">
+  Google API key for Generative AI models.
+  
+  **Required for:** `google:*` embedding models
+  
+  **Example:**
+  ```bash
+  export GOOGLE_API_KEY=AIza...
+  export DOCS_MCP_EMBEDDING_MODEL=google:text-embedding-004
+  ```
+</ParamField>
+
+### AWS Bedrock
+
+<ParamField path="BEDROCK_AWS_REGION" type="string">
+  AWS region for Bedrock service.
+  
+  **Required for:** `bedrock:*` embedding models
+  
+  **Example:**
+  ```bash
+  export BEDROCK_AWS_REGION=us-east-1
+  ```
+</ParamField>
+
+<ParamField path="AWS_REGION" type="string">
+  Alternative to `BEDROCK_AWS_REGION`. Lower precedence.
+  
+  **Example:**
+  ```bash
+  export AWS_REGION=us-west-2
+  ```
+</ParamField>
+
+<ParamField path="AWS_PROFILE" type="string">
+  AWS profile for authentication (uses AWS credentials file).
+  
+  **Example:**
+  ```bash
+  export AWS_PROFILE=my-profile
+  ```
+</ParamField>
+
+<ParamField path="AWS_ACCESS_KEY_ID" type="string">
+  AWS access key ID for direct authentication.
+  
+  **Example:**
+  ```bash
+  export AWS_ACCESS_KEY_ID=AKIA...
+  export AWS_SECRET_ACCESS_KEY=...
+  ```
+</ParamField>
+
+<ParamField path="AWS_SECRET_ACCESS_KEY" type="string">
+  AWS secret access key for direct authentication.
+  
+  **Example:**
+  ```bash
+  export AWS_SECRET_ACCESS_KEY=...
+  ```
+</ParamField>
+
+<ParamField path="AWS_SESSION_TOKEN" type="string">
+  AWS session token for temporary credentials.
+  
+  **Example:**
+  ```bash
+  export AWS_SESSION_TOKEN=...
+  ```
+</ParamField>
+
+### Azure OpenAI
+
+<ParamField path="AZURE_OPENAI_API_KEY" type="string">
+  Azure OpenAI API key.
+  
+  **Required for:** `azure:*` embedding models
+  
+  **Example:**
+  ```bash
+  export AZURE_OPENAI_API_KEY=...
+  ```
+</ParamField>
+
+<ParamField path="AZURE_OPENAI_API_INSTANCE_NAME" type="string">
+  Azure OpenAI instance name.
+  
+  **Example:**
+  ```bash
+  export AZURE_OPENAI_API_INSTANCE_NAME=my-instance
+  ```
+</ParamField>
+
+<ParamField path="AZURE_OPENAI_API_DEPLOYMENT_NAME" type="string">
+  Azure OpenAI deployment name.
+  
+  **Example:**
+  ```bash
+  export AZURE_OPENAI_API_DEPLOYMENT_NAME=text-embedding-ada-002
+  ```
+</ParamField>
+
+<ParamField path="AZURE_OPENAI_API_VERSION" type="string">
+  Azure OpenAI API version.
+  
+  **Example:**
+  ```bash
+  export AZURE_OPENAI_API_VERSION=2023-05-15
+  ```
+</ParamField>
+
+## Vector Embeddings
+
+<ParamField path="DOCS_MCP_EMBEDDINGS_VECTOR_DIMENSION" type="number">
+  Vector dimension size for embeddings. Must match the embedding model.
+  
+  **Common values:**
+  - OpenAI `text-embedding-3-small`: `1536`
+  - OpenAI `text-embedding-3-large`: `3072`
+  - Vertex `text-embedding-004`: `768`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_EMBEDDINGS_VECTOR_DIMENSION=1536
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_EMBEDDINGS_CHUNK_SIZE" type="number">
+  Size of text chunks for embedding (in characters).
+  
+  **Default:** `2000`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_EMBEDDINGS_CHUNK_SIZE=1500
+  ```
+</ParamField>
+
+<ParamField path="DOCS_MCP_EMBEDDINGS_CHUNK_OVERLAP" type="number">
+  Overlap between consecutive chunks (in characters).
+  
+  **Default:** `200`
+  
+  **Example:**
+  ```bash
+  export DOCS_MCP_EMBEDDINGS_CHUNK_OVERLAP=100
+  ```
+</ParamField>
+
+## Configuration Precedence
+
+Settings are applied in this order (highest to lowest priority):
+
+1. **CLI flags** (e.g., `--max-pages 2000`)
+2. **Environment variables** (e.g., `DOCS_MCP_SCRAPER_MAX_PAGES=2000`)
+3. **Configuration file** (e.g., `config.yaml`)
+4. **Built-in defaults**
+
+**Example:**
+
+```bash
+# config.yaml has: maxPages: 1000
+export DOCS_MCP_SCRAPER_MAX_PAGES=1500
+docs-mcp-server scrape mylib https://example.com --max-pages 2000
+# Result: maxPages = 2000 (CLI flag wins)
+
+# Without CLI flag
+docs-mcp-server scrape mylib https://example.com
+# Result: maxPages = 1500 (env var wins over config file)
+```
+
+## Common Patterns
+
+### Development Environment
+
+```bash
+# .env file for development
+DOCS_MCP_STORE_PATH=./data
+DOCS_MCP_TELEMETRY=false
+LOG_LEVEL=DEBUG
+OPENAI_API_KEY=sk-...
+DOCS_MCP_EMBEDDING_MODEL=openai:text-embedding-3-small
+```
+
+### Production Environment
+
+```bash
+# Production environment variables
+DOCS_MCP_STORE_PATH=/var/lib/docs-mcp-server
+DOCS_MCP_CONFIG=/etc/docs-mcp-server/config.yaml
+DOCS_MCP_TELEMETRY=true
+DOCS_MCP_HOST=0.0.0.0
+DOCS_MCP_PORT=8080
+DOCS_MCP_AUTH_ENABLED=true
+DOCS_MCP_AUTH_ISSUER_URL=https://auth.example.com
+DOCS_MCP_AUTH_AUDIENCE=https://api.example.com
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  docs-mcp-server:
+    image: ghcr.io/arabold/docs-mcp-server
+    environment:
+      - DOCS_MCP_STORE_PATH=/data
+      - DOCS_MCP_PORT=8080
+      - DOCS_MCP_HOST=0.0.0.0
+      - DOCS_MCP_EMBEDDING_MODEL=openai:text-embedding-3-small
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DOCS_MCP_TELEMETRY=false
+    volumes:
+      - ./data:/data
+    ports:
+      - "8080:8080"
+```
+
+### GitHub Actions
+
+```yaml
+env:
+  DOCS_MCP_STORE_PATH: ./data
+  DOCS_MCP_TELEMETRY: false
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  
+steps:
+  - name: Scrape documentation
+    run: |
+      docs-mcp-server scrape mylib https://docs.example.com
+```
+
+## Security Best Practices
+
+### Protect API Keys
+
+```bash
+# ❌ Bad: Hardcoded in shell scripts
+export OPENAI_API_KEY=sk-1234567890...
+
+# ✅ Good: Load from secure secret management
+export OPENAI_API_KEY=$(aws secretsmanager get-secret-value --secret-id openai-key --query SecretString --output text)
+
+# ✅ Good: Use .env file (not committed to git)
+source .env
+```
+
+### Restrict Permissions
+
+```bash
+# Ensure .env file is not world-readable
+chmod 600 .env
+
+# Ensure store-path is protected
+chmod 700 /var/lib/docs-mcp-server
+```
+
+### Use Read-Only Mode
+
+```bash
+# Prevent write operations in production query servers
+export DOCS_MCP_READ_ONLY=true
+```
+
+## See Also
+
+- [Global Options](/cli/global-options) - CLI flags
+- [config Command](/cli/config) - Manage configuration
+- [Configuration Reference](/setup/configuration) - Complete configuration guide
+- [Embedding Models](/guides/embedding-models) - Provider setup

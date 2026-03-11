@@ -1,0 +1,210 @@
+---
+title: remove
+description: Delete a library's documentation from the index
+---
+
+## Usage
+
+```bash
+docs-mcp-server remove <library> [options]
+```
+
+## Arguments
+
+<ParamField path="library" type="string" required>
+  Name of the library to remove
+</ParamField>
+
+## Options
+
+<ParamField path="--version, -v" type="string">
+  Version to remove (optional). If omitted, removes the latest version.
+</ParamField>
+
+<ParamField path="--server-url" type="string">
+  URL of external pipeline worker RPC endpoint (e.g., `http://localhost:8080/api`).
+  
+  When specified, removes documentation from the remote worker.
+</ParamField>
+
+## Examples
+
+### Remove Latest Version
+
+```bash
+# Remove the latest version of React
+docs-mcp-server remove react
+```
+
+### Remove Specific Version
+
+```bash
+# Remove React 18.0.0
+docs-mcp-server remove react --version 18.0.0
+```
+
+### Remove from Remote Worker
+
+```bash
+# Remove from remote documentation index
+docs-mcp-server remove react --version 18.0.0 \
+  --server-url http://worker.example.com:8080/api
+```
+
+## Output
+
+**Successful removal:**
+```bash
+✅ Successfully removed react@18.0.0.
+```
+
+**Without version:**
+```bash
+✅ Successfully removed react.
+```
+
+## Behavior
+
+### Version Not Specified
+
+When no version is provided, the command removes the latest indexed version:
+
+```bash
+docs-mcp-server remove react
+# Removes the most recent React version in the index
+```
+
+### Multiple Versions
+
+The command only removes the specified version. Other versions remain:
+
+```bash
+# Before: react@18.0.0, react@17.0.2, react@16.14.0
+docs-mcp-server remove react --version 18.0.0
+# After: react@17.0.2, react@16.14.0
+```
+
+### Complete Removal
+
+To remove all versions, run the command for each version:
+
+```bash
+docs-mcp-server remove react --version 18.0.0
+docs-mcp-server remove react --version 17.0.2
+docs-mcp-server remove react --version 16.14.0
+```
+
+Or list versions first:
+
+```bash
+# Get all versions
+docs-mcp-server list
+
+# Remove each version
+for version in 18.0.0 17.0.2 16.14.0; do
+  docs-mcp-server remove react --version $version
+done
+```
+
+### Permanent Deletion
+
+Removal is permanent and cannot be undone. To restore:
+
+```bash
+# Re-scrape the library
+docs-mcp-server scrape react https://react.dev --version 18.0.0
+```
+
+## Error Handling
+
+**Library Not Found**
+```bash
+❌ Failed to remove mylib: Library not found in index
+```
+
+Verify the library exists:
+```bash
+docs-mcp-server list
+```
+
+**Version Not Found**
+```bash
+❌ Failed to remove react@99.0.0: Version not found
+```
+
+Check available versions:
+```bash
+docs-mcp-server list
+```
+
+## Use Cases
+
+### Free Up Storage
+
+Remove old or unused versions:
+
+```bash
+# Remove outdated versions
+docs-mcp-server remove react --version 16.14.0
+docs-mcp-server remove react --version 17.0.2
+```
+
+### Clean Before Re-scraping
+
+Remove and re-index to ensure fresh data:
+
+```bash
+# Remove old version
+docs-mcp-server remove react --version 18.0.0
+
+# Scrape fresh version
+docs-mcp-server scrape react https://react.dev --version 18.0.0
+```
+
+<Note>
+  The [scrape](/cli/scrape) command with `--clean` (default) automatically removes existing data before scraping, so explicit removal is usually not necessary.
+</Note>
+
+### Remove Incorrect Data
+
+Fix scraping mistakes:
+
+```bash
+# Wrong library name used
+docs-mcp-server remove wrong-name
+
+# Scrape with correct name
+docs-mcp-server scrape correct-name https://example.com
+```
+
+## Performance
+
+The `remove` command is fast and does not require embedding model initialization. It only deletes records from the document store.
+
+Removal time depends on the number of documents:
+
+- Small libraries (< 100 pages): < 1 second
+- Medium libraries (100-500 pages): 1-3 seconds
+- Large libraries (> 500 pages): 3-10 seconds
+
+## Verification
+
+Confirm removal with the [list](/cli/list) command:
+
+```bash
+# Before removal
+docs-mcp-server list
+# Shows: react@18.0.0, react@17.0.2
+
+docs-mcp-server remove react --version 18.0.0
+
+# After removal
+docs-mcp-server list
+# Shows: react@17.0.2
+```
+
+## See Also
+
+- [scrape](/cli/scrape) - Add or re-index documentation
+- [list](/cli/list) - View indexed libraries and versions
+- [refresh](/cli/refresh) - Update existing documentation without removing

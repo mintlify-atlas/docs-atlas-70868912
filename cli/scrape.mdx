@@ -1,0 +1,319 @@
+---
+title: scrape
+description: Download and index documentation from a URL or local directory
+---
+
+## Usage
+
+```bash
+docs-mcp-server scrape <library> <url> [options]
+```
+
+## Arguments
+
+<ParamField path="library" type="string" required>
+  Library name to use for indexing
+</ParamField>
+
+<ParamField path="url" type="string" required>
+  URL or `file://` path to scrape. Can be:
+  - HTTP/HTTPS URL: `https://react.dev/reference/react`
+  - Local file: `file:///Users/me/docs/index.html`
+  - Local directory: `file:///Users/me/docs/my-library`
+</ParamField>
+
+## Options
+
+### Basic Options
+
+<ParamField path="--version, -v" type="string">
+  Version of the library (optional). If not specified, the library will be indexed without a version.
+</ParamField>
+
+<ParamField path="--max-pages, -p" type="number" default="1000">
+  Maximum number of pages to scrape. Prevents runaway crawls.
+</ParamField>
+
+<ParamField path="--max-depth, -d" type="number" default="10">
+  Maximum navigation depth from the starting URL. Links beyond this depth will not be followed.
+</ParamField>
+
+<ParamField path="--max-concurrency, -c" type="number" default="5">
+  Maximum number of concurrent page requests. Higher values speed up scraping but may overwhelm the server.
+</ParamField>
+
+<ParamField path="--clean" type="boolean" default="true">
+  Clear existing documents before scraping. Set to `false` to append to existing documentation.
+</ParamField>
+
+### Crawling Options
+
+<ParamField path="--scope" type="string" default="subpages">
+  Defines the crawling boundary:
+  - `subpages` - Only crawl URLs under the starting URL path
+  - `hostname` - Crawl any URL on the same hostname
+  - `domain` - Crawl any URL on the same domain (including subdomains)
+</ParamField>
+
+<ParamField path="--follow-redirects" type="boolean" default="true">
+  Follow HTTP redirects during scraping. Use `--no-follow-redirects` to disable.
+</ParamField>
+
+<ParamField path="--ignore-errors" type="boolean" default="true">
+  Continue scraping even if individual pages fail to load
+</ParamField>
+
+### Content Processing
+
+<ParamField path="--scrape-mode" type="string" default="auto">
+  HTML processing strategy:
+  - `auto` - Automatically detect the best extraction method
+  - `markdown` - Convert HTML to Markdown
+  - `html` - Use raw HTML
+  - `text` - Extract plain text only
+</ParamField>
+
+### URL Filtering
+
+<ParamField path="--include-pattern" type="string[]">
+  Glob or regex pattern for URLs to include. Can be specified multiple times.
+  Regex patterns must be wrapped in slashes (e.g., `/pattern/`).
+  
+  Example:
+  ```bash
+  --include-pattern "*/api/*" --include-pattern "/docs.*html/"
+  ```
+</ParamField>
+
+<ParamField path="--exclude-pattern" type="string[]">
+  Glob or regex pattern for URLs to exclude. Takes precedence over include patterns.
+  Can be specified multiple times. Regex patterns must be wrapped in slashes.
+  
+  Example:
+  ```bash
+  --exclude-pattern "*/blog/*" --exclude-pattern "*/changelog/*"
+  ```
+</ParamField>
+
+### Request Headers
+
+<ParamField path="--header" type="string[]">
+  Custom HTTP header to send with each request. Can be specified multiple times.
+  Format: `Header-Name: Header-Value`
+  
+  Example:
+  ```bash
+  --header "Authorization: Bearer token123" \
+  --header "User-Agent: MyBot/1.0"
+  ```
+</ParamField>
+
+### Embedding Configuration
+
+<ParamField path="--embedding-model" type="string">
+  Embedding model configuration in format `provider:model-name`.
+  
+  Examples:
+  - `openai:text-embedding-3-small`
+  - `vertex:text-embedding-004`
+  - `bedrock:amazon.titan-embed-text-v1`
+  - `azure:text-embedding-ada-002`
+  
+  See [Embedding Models](/guides/embedding-models) for full details.
+</ParamField>
+
+### Remote Worker
+
+<ParamField path="--server-url" type="string">
+  URL of external pipeline worker RPC endpoint.
+  
+  Example: `http://localhost:8080/api`
+  
+  When specified, the scraping job is sent to the remote worker instead of processing locally.
+</ParamField>
+
+## Examples
+
+### Basic Scraping
+
+```bash
+# Scrape React documentation
+docs-mcp-server scrape react https://react.dev/reference/react
+
+# Scrape with version
+docs-mcp-server scrape react https://react.dev/reference/react --version 18.0.0
+```
+
+### Local Files
+
+```bash
+# Scrape single HTML file
+docs-mcp-server scrape mylib file:///Users/me/docs/index.html
+
+# Scrape directory
+docs-mcp-server scrape mylib file:///Users/me/docs/my-library
+```
+
+<Note>
+  When using Docker, mount the local directory:
+  ```bash
+  docker run -v /Users/me/docs:/docs \
+    ghcr.io/arabold/docs-mcp-server \
+    scrape mylib file:///docs
+  ```
+</Note>
+
+### Advanced Crawling
+
+```bash
+# Limit scope to API documentation only
+docs-mcp-server scrape mylib https://docs.example.com/api \
+  --scope subpages \
+  --max-pages 500 \
+  --max-depth 5
+
+# Use include/exclude patterns
+docs-mcp-server scrape mylib https://docs.example.com \
+  --include-pattern "*/api/*" \
+  --include-pattern "*/reference/*" \
+  --exclude-pattern "*/blog/*"
+```
+
+### Custom Headers and Authentication
+
+```bash
+# Scrape with authentication
+docs-mcp-server scrape private-docs https://private.example.com \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "X-Custom-Header: value"
+```
+
+### Performance Tuning
+
+```bash
+# Fast scraping with high concurrency
+docs-mcp-server scrape mylib https://docs.example.com \
+  --max-concurrency 10 \
+  --max-pages 2000
+
+# Conservative scraping (slow but safe)
+docs-mcp-server scrape mylib https://docs.example.com \
+  --max-concurrency 2 \
+  --max-depth 3
+```
+
+### Using Custom Embedding Models
+
+```bash
+# OpenAI embeddings
+docs-mcp-server scrape react https://react.dev \
+  --embedding-model openai:text-embedding-3-small
+
+# Vertex AI embeddings
+docs-mcp-server scrape react https://react.dev \
+  --embedding-model vertex:text-embedding-004
+```
+
+### Remote Worker
+
+```bash
+# Send scraping job to remote worker
+docs-mcp-server scrape react https://react.dev \
+  --server-url http://worker.example.com:8080/api
+```
+
+## Output
+
+The command displays progress during scraping:
+
+```
+⏳ Initializing scraping job...
+🚀 Scraping react v18.0.0...
+📄 Scraping react v18.0.0: 45/100 pages
+📄 Scraping react v18.0.0: 100/100 pages
+✅ Successfully scraped 100 pages
+```
+
+## Behavior
+
+### Clean Mode (Default)
+
+By default, `--clean true` removes all existing documents for the library/version before scraping:
+
+```bash
+# This removes existing React 18.0.0 docs before scraping
+docs-mcp-server scrape react https://react.dev --version 18.0.0
+```
+
+### Append Mode
+
+Use `--clean false` to append to existing documentation:
+
+```bash
+# This adds to existing React docs without removing them
+docs-mcp-server scrape react https://react.dev/hooks --clean false
+```
+
+### URL Scope
+
+The `--scope` option controls crawling boundaries:
+
+```bash
+# Only crawl /api/* and below
+docs-mcp-server scrape mylib https://example.com/api --scope subpages
+# Result: https://example.com/api/endpoint ✓
+# Result: https://example.com/guide ✗
+
+# Crawl entire example.com hostname
+docs-mcp-server scrape mylib https://example.com/api --scope hostname
+# Result: https://example.com/guide ✓
+# Result: https://api.example.com ✗
+
+# Crawl all *.example.com domains
+docs-mcp-server scrape mylib https://example.com/api --scope domain
+# Result: https://api.example.com ✓
+# Result: https://other.com ✗
+```
+
+### Pattern Matching
+
+Patterns support both glob and regex:
+
+```bash
+# Glob patterns
+--include-pattern "*/api/*"        # Matches /docs/api/endpoint
+--exclude-pattern "*.pdf"          # Excludes PDF files
+
+# Regex patterns (wrapped in slashes)
+--include-pattern "/api\/v[0-9]+/"  # Matches /api/v1, /api/v2, etc.
+--exclude-pattern "/\\.(jpg|png)$/" # Excludes image files
+```
+
+## Error Handling
+
+**Invalid URL**
+```bash
+❌ Scraping failed: Invalid URL format
+```
+
+**Authentication Required**
+```bash
+❌ Scraping failed: HTTP 401 Unauthorized
+# Solution: Add authentication header
+docs-mcp-server scrape mylib https://example.com \
+  --header "Authorization: Bearer $TOKEN"
+```
+
+**Embedding Model Not Configured**
+```bash
+❌ OpenAI API key not configured
+# Solution: Set environment variable or use --embedding-model
+export OPENAI_API_KEY=sk-...
+```
+
+## See Also
+
+- [refresh](/cli/refresh) - Update existing documentation with changed pages
+- [list](/cli/list) - View indexed libraries
+- [search](/cli/search) - Query indexed documentation
+- [Embedding Models](/guides/embedding-models) - Configure embedding providers

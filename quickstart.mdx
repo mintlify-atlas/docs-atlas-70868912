@@ -1,80 +1,449 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get Grounded Docs MCP Server running in 5 minutes and start querying up-to-date documentation
 ---
 
-## Get started in three steps
+# Quick Start Guide
 
-Get your documentation site running locally and make your first customization.
+This guide will get you up and running with Grounded Docs in under 5 minutes. You'll start the server, add documentation, connect your AI assistant, and perform your first search.
 
-### Step 1: Set up your local environment
+## Prerequisites
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Info>
+  **Node.js 22 or later** is required. Check your version with `node --version`.
+</Info>
+
+If you don't have Node.js 22, you can:
+- Use [nvm](https://github.com/nvm-sh/nvm): `nvm install 22 && nvm use 22`
+- Use Docker (no Node.js required)
+- Download from [nodejs.org](https://nodejs.org/)
+
+## Step 1: Start the Server
+
+<Tabs>
+  <Tab title="Node.js (npx)">
+    The fastest way to start. This command downloads and runs the latest version:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    npx @arabold/docs-mcp-server@latest
+    ```
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    You should see output like:
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```
+    🚀 Docs MCP Server started
+    📡 Protocol: http
+    🌐 Web UI: http://localhost:6280
+    🔌 MCP endpoint: http://localhost:6280/mcp
+    📊 SSE endpoint: http://localhost:6280/sse
+    ```
+    
+    <Note>
+      The server uses port **6280** by default. If this port is in use, specify a different one with `--port 6281`.
+    </Note>
+  </Tab>
+  
+  <Tab title="Docker">
+    Run in an isolated container with persistent storage:
+    
+    ```bash
+    docker run --rm \
+      -v docs-mcp-data:/data \
+      -v docs-mcp-config:/config \
+      -p 6280:6280 \
+      ghcr.io/arabold/docs-mcp-server:latest \
+      --protocol http --host 0.0.0.0 --port 6280
+    ```
+    
+    <Info>
+      The `-v` flags create persistent volumes so your indexed documentation survives container restarts.
+    </Info>
+  </Tab>
+  
+  <Tab title="With Embeddings (Recommended)">
+    Enable semantic search by providing an OpenAI API key:
+    
+    ```bash
+    OPENAI_API_KEY="sk-proj-your-key-here" npx @arabold/docs-mcp-server@latest
+    ```
+    
+    This enables **vector search** for dramatically better search quality.
+    
+    <Note>
+      You can also use Ollama (local, free), Google Gemini, Azure OpenAI, or AWS Bedrock. See [Embedding Models](/guides/embedding-models) for configuration.
+    </Note>
+  </Tab>
+</Tabs>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Step 2: Access the Web Interface
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Open your browser and navigate to:
 
-### Step 3: Go live
+**[http://localhost:6280](http://localhost:6280)**
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+You'll see the Grounded Docs web interface where you can:
+- Add new documentation sources
+- View indexing progress
+- Search documentation
+- Manage your library
 
-## Next steps
+## Step 3: Add Your First Documentation
 
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+<Steps>
+  <Step title="Navigate to Add Documentation">
+    Click the **"Add Documentation"** button on the web interface home page.
+  </Step>
+  
+  <Step title="Enter Documentation Details">
+    Fill in the form:
+    
+    - **Library Name**: `react` (the identifier for this documentation)
+    - **Version**: `18.x` (or leave blank for latest)
+    - **URL**: `https://react.dev/reference/react`
+    
+    Click **"Start Scraping"**
+  </Step>
+  
+  <Step title="Watch the Progress">
+    The server will:
+    1. Fetch the webpage and discover links
+    2. Download all pages within the same domain
+    3. Convert HTML to clean markdown
+    4. Split content into searchable chunks
+    5. Generate embeddings (if configured)
+    
+    This typically takes 1-3 minutes depending on documentation size.
+  </Step>
+  
+  <Step title="Verify Completion">
+    When complete, you'll see the status change to **"Completed"** with a summary of indexed documents.
+  </Step>
+</Steps>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  The web interface polls for status updates every 3 seconds and displays real-time progress bars.
 </Note>
+
+## Step 4: Connect Your AI Assistant
+
+Now configure your AI assistant to use the documentation server:
+
+<Tabs>
+  <Tab title="Claude Desktop">
+    Edit your Claude Desktop configuration:
+    
+    **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+    
+    **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+    
+    Add this configuration:
+    
+    ```json
+    {
+      "mcpServers": {
+        "docs-mcp-server": {
+          "type": "sse",
+          "url": "http://localhost:6280/sse"
+        }
+      }
+    }
+    ```
+    
+    Restart Claude Desktop.
+  </Tab>
+  
+  <Tab title="Cursor">
+    1. Open **Settings** → **Cursor Settings** → **MCP**
+    2. Click **"Add new MCP server"**
+    3. Choose **"streamableHttp"** type
+    4. Enter URL: `http://localhost:6280/mcp`
+    5. Save
+    
+    Or edit your config file directly:
+    
+    ```json
+    {
+      "mcpServers": {
+        "docs-mcp-server": {
+          "type": "streamableHttp",
+          "url": "http://localhost:6280/mcp"
+        }
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="VS Code (Cline)">
+    1. Open Cline extension
+    2. Click the **MCP Servers** icon
+    3. Choose **"Remote Servers"**
+    4. Add this configuration:
+    
+    ```json
+    {
+      "mcpServers": {
+        "docs-mcp-server": {
+          "url": "http://localhost:6280/mcp",
+          "type": "streamableHttp"
+        }
+      }
+    }
+    ```
+    
+    Reload the extension.
+  </Tab>
+  
+  <Tab title="Embedded Mode">
+    If you prefer to run the server directly inside your AI assistant without a separate process:
+    
+    ```json
+    {
+      "mcpServers": {
+        "docs-mcp-server": {
+          "command": "npx",
+          "args": ["-y", "@arabold/docs-mcp-server@latest"],
+          "env": {
+            "OPENAI_API_KEY": "sk-proj-your-key"
+          }
+        }
+      }
+    }
+    ```
+    
+    <Warning>
+      In embedded mode, you won't have access to the web interface unless you launch it separately.
+    </Warning>
+  </Tab>
+</Tabs>
+
+<Info>
+  For complete client configuration instructions, see [Connecting MCP Clients](/setup/connecting-clients).
+</Info>
+
+## Step 5: Test Your Setup
+
+### Search via Web Interface
+
+First, verify the documentation is indexed:
+
+1. Go to **[http://localhost:6280](http://localhost:6280)**
+2. Use the search box at the top
+3. Try searching: `useState hook`
+4. You should see relevant React documentation chunks
+
+### Search via CLI
+
+Test from the command line:
+
+```bash
+npx @arabold/docs-mcp-server@latest search react "useState hook"
+```
+
+Expected output:
+
+```
+🔍 Searching for: "useState hook"
+📚 Library: react
+
+📄 Result 1 - React: useState
+Source: https://react.dev/reference/react/useState
+Relevance: 0.95
+
+Content:
+useState is a React Hook that lets you add a state variable to your component.
+
+const [state, setState] = useState(initialState)
+
+Call useState at the top level of your component to declare a state variable...
+```
+
+### Query Your AI Assistant
+
+Now ask your connected AI assistant:
+
+<CodeGroup>
+
+```text Example Prompt
+How does the useState hook work in React? Please check the documentation.
+```
+
+```text Expected Response
+Based on the React documentation, useState is a React Hook that lets you add
+a state variable to your component. Here's how it works:
+
+[AI provides detailed explanation using the actual documentation]
+```
+
+</CodeGroup>
+
+<Note>
+  Your AI will automatically use the `search_docs` MCP tool to query the indexed documentation and provide grounded, accurate answers.
+</Note>
+
+## Next Steps
+
+Now that you're up and running, explore more features:
+
+<CardGroup cols={2}>
+  <Card title="Add More Documentation" icon="plus">
+    Index additional libraries:
+    
+    ```bash
+    # Next.js documentation
+    npx @arabold/docs-mcp-server@latest scrape nextjs https://nextjs.org/docs
+    
+    # npm package
+    npx @arabold/docs-mcp-server@latest scrape lodash npm:lodash@4.17.21
+    
+    # Local files
+    npx @arabold/docs-mcp-server@latest scrape my-project file:///Users/me/projects/my-app
+    ```
+  </Card>
+  
+  <Card title="Enable Semantic Search" icon="brain" href="/guides/embedding-models">
+    Configure embeddings for much better search quality:
+    
+    - **OpenAI**: Best quality (paid)
+    - **Ollama**: Free, runs locally
+    - **Google Gemini**: Good alternative
+  </Card>
+  
+  <Card title="Explore Advanced Usage" icon="book" href="/guides/basic-usage">
+    Learn about:
+    
+    - Scraping GitHub repositories
+    - Indexing ZIP archives
+    - Managing multiple library versions
+    - Job management and cancellation
+  </Card>
+  
+  <Card title="Configure Deployment" icon="server" href="/architecture/deployment-modes">
+    Production deployment options:
+    
+    - Docker Compose for scaling
+    - Authentication with OAuth2
+    - Telemetry and monitoring
+  </Card>
+</CardGroup>
+
+## Common CLI Commands
+
+Here are the most useful commands for managing your documentation:
+
+<CodeGroup>
+
+```bash List Libraries
+# Show all indexed libraries
+npx @arabold/docs-mcp-server@latest list
+```
+
+```bash Scrape Documentation
+# Scrape a website
+npx @arabold/docs-mcp-server@latest scrape <name> <url>
+
+# Examples:
+npx @arabold/docs-mcp-server@latest scrape react https://react.dev/reference
+npx @arabold/docs-mcp-server@latest scrape vue https://vuejs.org/guide/
+```
+
+```bash Search Documentation
+# Search across all libraries
+npx @arabold/docs-mcp-server@latest search "query text"
+
+# Search specific library
+npx @arabold/docs-mcp-server@latest search react "useState"
+```
+
+```bash Delete Library
+# Remove indexed documentation
+npx @arabold/docs-mcp-server@latest delete <library-name>
+```
+
+```bash Start Web Interface
+# Launch web UI on custom port
+npx @arabold/docs-mcp-server@latest web --port 6281
+```
+
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port 6280 is already in use">
+    Specify a different port:
+    
+    ```bash
+    npx @arabold/docs-mcp-server@latest --port 6281
+    ```
+    
+    Update your MCP client configuration to use the new port.
+  </Accordion>
+  
+  <Accordion title="Search returns no results">
+    Possible causes:
+    
+    1. **Documentation not indexed yet**: Check the web interface for job status
+    2. **Wrong library name**: Use `npx @arabold/docs-mcp-server@latest list` to see indexed libraries
+    3. **Typo in search query**: Try broader terms
+    
+    Test with a known-good query like searching for the library name itself.
+  </Accordion>
+  
+  <Accordion title="AI assistant not seeing the tools">
+    1. **Verify connection**: Check your MCP client logs for connection errors
+    2. **Restart the client**: Most MCP clients need a restart after config changes
+    3. **Check endpoint**: Make sure the URL matches the server's output
+    4. **Protocol mismatch**: Ensure you're using the correct endpoint (`/mcp` for streamableHttp, `/sse` for SSE)
+  </Accordion>
+  
+  <Accordion title="Scraping fails or hangs">
+    Some websites block automated scraping. Solutions:
+    
+    1. **Try different URLs**: Use the documentation home page or sitemap
+    2. **Check robots.txt**: The site may disallow scraping
+    3. **Use GitHub instead**: Many projects have docs on GitHub that are easier to scrape
+    4. **Manual download**: Download docs locally and use `file://` URLs
+  </Accordion>
+  
+  <Accordion title="Database locked errors">
+    This happens when multiple processes try to write simultaneously.
+    
+    **Solution**: If using embedded mode, launch a separate web UI that connects to the same database:
+    
+    ```bash
+    npx @arabold/docs-mcp-server@latest web --port 6281
+    ```
+    
+    Use the web UI for scraping while keeping embedded mode for queries.
+  </Accordion>
+</AccordionGroup>
+
+## Configuration Files
+
+The server auto-creates a configuration file at:
+
+**macOS/Linux**: `~/.config/docs-mcp-server/config.yaml`
+
+**Windows**: `%APPDATA%\docs-mcp-server\config.yaml`
+
+You can customize:
+- Database location
+- Server ports and host
+- Embedding model configuration
+- Search parameters
+- Scraping limits
+
+See [Configuration](/setup/configuration) for full reference.
+
+## What's Next?
+
+You now have a working Grounded Docs setup! Your AI assistant can query accurate, up-to-date documentation instead of relying on potentially outdated training data.
+
+<Card title="Join the Community" icon="github" href="https://github.com/arabold/docs-mcp-server">
+  Star the project, report issues, or contribute:
+  
+  - Report bugs and request features
+  - Share your use cases
+  - Contribute code improvements
+  - Help improve documentation
+</Card>

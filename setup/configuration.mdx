@@ -1,0 +1,376 @@
+---
+title: Configuration
+description: Configure the Docs MCP Server with environment variables, config files, and CLI arguments
+---
+
+The Docs MCP Server uses a unified configuration system that aggregates settings from multiple sources, validating them against a strict schema.
+
+## Configuration File
+
+By default, configuration is stored in your system's preferences directory:
+
+<CodeGroup>
+
+```bash macOS
+~/Library/Preferences/docs-mcp-server/config.yaml
+```
+
+```bash Linux
+~/.config/docs-mcp-server/config.yaml
+```
+
+```bash Windows
+%APPDATA%\docs-mcp-server\config.yaml
+```
+
+</CodeGroup>
+
+### Example Config File
+
+```yaml config.yaml
+app:
+  storePath: ~/.docs-mcp-server
+  telemetryEnabled: true
+  embeddingModel: text-embedding-3-small
+
+scraper:
+  maxPages: 1000
+  maxDepth: 3
+  document:
+    maxSize: 10485760  # 10MB
+
+splitter:
+  preferredChunkSize: 1500
+  maxChunkSize: 5000
+```
+
+The server **automatically updates** this file on startup with new defaults.
+
+### Using a Custom Config File
+
+You can specify a custom config file with `--config` or `DOCS_MCP_CONFIG`:
+
+```bash
+docs-mcp-server --config /path/to/config.yaml
+```
+
+<Note>
+  Explicit config files are treated as **read-only**. The server will not modify them.
+</Note>
+
+## Configuration Priority
+
+Configuration values are merged from multiple sources, with **later sources taking precedence**:
+
+1. **Defaults** (lowest priority)
+2. **Config File**
+3. **Environment Variables**
+4. **CLI Arguments** (highest priority)
+
+## Environment Variables
+
+Any configuration setting can be overridden via environment variables using the naming convention:
+
+```
+DOCS_MCP_<SECTION>_<SETTING>
+```
+
+**Rules:**
+- Convert `camelCase` to `UPPER_SNAKE_CASE`
+- Join nested paths with underscores
+
+### Common Environment Variables
+
+<CodeGroup>
+
+```bash Scraper Settings
+# Override scraper settings
+export DOCS_MCP_SCRAPER_MAX_PAGES=2000
+export DOCS_MCP_SCRAPER_DOCUMENT_MAX_SIZE=52428800
+```
+
+```bash Splitter Settings
+# Override splitter settings
+export DOCS_MCP_SPLITTER_PREFERRED_CHUNK_SIZE=2000
+export DOCS_MCP_SPLITTER_MAX_CHUNK_SIZE=5000
+```
+
+```bash App Settings
+# Override app settings
+export DOCS_MCP_APP_TELEMETRY_ENABLED=false
+export DOCS_MCP_APP_STORE_PATH=/data/docs
+```
+
+```bash Embedding Model
+# Configure embedding model
+export DOCS_MCP_APP_EMBEDDING_MODEL=text-embedding-3-small
+export OPENAI_API_KEY=sk-proj-...
+```
+
+</CodeGroup>
+
+### Legacy Aliases
+
+Some settings have **legacy aliases** for convenience:
+
+| Setting | Alias |
+|---------|-------|
+| `server.ports.default` | `PORT` |
+| `server.host` | `HOST` |
+
+## CLI Arguments
+
+Common settings have dedicated CLI flags:
+
+```bash
+docs-mcp-server --port 8080 --host 0.0.0.0
+docs-mcp-server --store-path /data/docs --read-only
+```
+
+## CLI Configuration Commands
+
+Manage configuration directly from the command line:
+
+<Tabs>
+  <Tab title="View Config">
+    ```bash
+    # View current configuration (JSON format)
+    docs-mcp-server config
+
+    # View current configuration (YAML format)
+    docs-mcp-server config --yaml
+    ```
+  </Tab>
+
+  <Tab title="Get Value">
+    ```bash
+    # Get a specific value
+    docs-mcp-server config get scraper.maxPages
+    # Output: 1000
+
+    # Get a nested object
+    docs-mcp-server config get scraper.fetcher
+    # Output: { "maxRetries": 6, ... }
+    ```
+  </Tab>
+
+  <Tab title="Set Value">
+    ```bash
+    # Set a value (persists to config file)
+    docs-mcp-server config set scraper.maxPages 500
+    # Output: Updated scraper.maxPages = 500
+    ```
+
+    <Note>
+      `config set` only modifies the system default configuration file. If you specify `--config`, the file is treated as read-only.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Configuration Reference
+
+### App Settings
+
+General application settings.
+
+<ParamField path="app.storePath" type="string" default="~/.docs-mcp-server">
+  Directory for storing databases and logs.
+</ParamField>
+
+<ParamField path="app.telemetryEnabled" type="boolean" default="true">
+  Enable anonymous usage telemetry.
+</ParamField>
+
+<ParamField path="app.readOnly" type="boolean" default="false">
+  Prevent modification of data (scraping/indexing).
+</ParamField>
+
+<ParamField path="app.embeddingModel" type="string" default="text-embedding-3-small">
+  Model to use for vector embeddings. Format: `provider:model_name` or just `model_name` for OpenAI.
+  
+  Examples:
+  - `openai:text-embedding-3-small` (default)
+  - `vertex:text-embedding-004` (Google Cloud Vertex AI)
+  - `gemini:gemini-embedding-exp-03-07` (Google Generative AI)
+  - `aws:amazon.titan-embed-text-v1`
+  - `microsoft:text-embedding-ada-002`
+</ParamField>
+
+### Server Settings
+
+Settings for the API and MCP servers.
+
+<ParamField path="server.protocol" type="string" default="auto">
+  Server protocol: `stdio`, `http`, or `auto`.
+</ParamField>
+
+<ParamField path="server.host" type="string" default="127.0.0.1">
+  Host interface to bind to.
+</ParamField>
+
+<ParamField path="server.heartbeatMs" type="number" default="30000">
+  MCP protocol heartbeat interval in milliseconds.
+</ParamField>
+
+<ParamField path="server.ports.default" type="number" default="6280">
+  Default port for the main server.
+</ParamField>
+
+<ParamField path="server.ports.worker" type="number" default="8080">
+  Port for the background worker service.
+</ParamField>
+
+<ParamField path="server.ports.mcp" type="number" default="6280">
+  Port for the specific MCP interface.
+</ParamField>
+
+<ParamField path="server.ports.web" type="number" default="6281">
+  Port for the web dashboard.
+</ParamField>
+
+### Authentication Settings
+
+Security settings for the HTTP server.
+
+<ParamField path="auth.enabled" type="boolean" default="false">
+  Enable JWT authentication.
+</ParamField>
+
+<ParamField path="auth.issuerUrl" type="string">
+  OIDC Issuer URL (e.g., Clerk, Auth0).
+</ParamField>
+
+<ParamField path="auth.audience" type="string">
+  Expected JWT audience claim.
+</ParamField>
+
+### Scraper Settings
+
+Settings controlling the web scraping behavior.
+
+<ParamField path="scraper.maxPages" type="number" default="1000">
+  Maximum number of pages to crawl per job.
+</ParamField>
+
+<ParamField path="scraper.maxDepth" type="number" default="3">
+  Maximum link depth to traverse.
+</ParamField>
+
+<ParamField path="scraper.maxConcurrency" type="number" default="3">
+  Number of concurrent page fetches.
+</ParamField>
+
+<ParamField path="scraper.pageTimeoutMs" type="number" default="5000">
+  Timeout for a single page load in milliseconds.
+</ParamField>
+
+<ParamField path="scraper.browserTimeoutMs" type="number" default="30000">
+  Timeout for the browser instance in milliseconds.
+</ParamField>
+
+<ParamField path="scraper.fetcher.maxRetries" type="number" default="6">
+  Number of retries for failed requests.
+</ParamField>
+
+<ParamField path="scraper.fetcher.baseDelayMs" type="number" default="1000">
+  Initial delay for exponential backoff in milliseconds.
+</ParamField>
+
+<ParamField path="scraper.document.maxSize" type="number" default="10485760">
+  Maximum size in bytes for PDF/Office documents (10MB default).
+</ParamField>
+
+<Note>
+  Scraper settings are often overridden per-job via CLI arguments like `--max-pages`.
+</Note>
+
+### GitHub Authentication
+
+Environment variables for authenticating with GitHub when scraping private repositories.
+
+<ParamField path="GITHUB_TOKEN" type="string">
+  GitHub personal access token or fine-grained token. Used for private repo access and higher rate limits.
+</ParamField>
+
+<ParamField path="GH_TOKEN" type="string">
+  Alternative to `GITHUB_TOKEN`. Used if `GITHUB_TOKEN` is not set.
+</ParamField>
+
+**Authentication Resolution Order:**
+
+1. Explicit `Authorization` header passed in scraper options
+2. `GITHUB_TOKEN` environment variable
+3. `GH_TOKEN` environment variable
+4. Local `gh` CLI authentication (via `gh auth token`)
+
+<Info>
+  If no authentication is available, public repositories are still accessible but with lower rate limits (60 requests/hour vs 5,000 authenticated).
+</Info>
+
+### Splitter Settings
+
+Settings for chunking text for vector search.
+
+<ParamField path="splitter.minChunkSize" type="number" default="500">
+  Minimum characters per chunk body. Chunks below this threshold are merged with adjacent chunks by the greedy optimizer.
+</ParamField>
+
+<ParamField path="splitter.preferredChunkSize" type="number" default="1500">
+  Soft target for chunk body size in characters. The greedy optimizer splits when combining two chunks would exceed this value.
+</ParamField>
+
+<ParamField path="splitter.maxChunkSize" type="number" default="5000">
+  Hard upper limit for chunk body size in characters. No chunk body will exceed this value.
+</ParamField>
+
+<Warning>
+  These size limits apply to the **text body** of each chunk. Before embedding, a small metadata header (page title, URL, section path) is prepended to each chunk. If your embedding model has a small context window, consider lowering `maxChunkSize`.
+</Warning>
+
+### Embedding Settings
+
+Settings for vector embedding generation.
+
+<ParamField path="embeddings.batchSize" type="number" default="100">
+  Number of chunks to embed in one request.
+</ParamField>
+
+<ParamField path="embeddings.vectorDimension" type="number" default="1536">
+  Dimension of the vector space (must match your embedding model).
+</ParamField>
+
+### Database Settings
+
+Internal database settings.
+
+<ParamField path="db.migrationMaxRetries" type="number" default="5">
+  Retries for database migrations on startup.
+</ParamField>
+
+### Assembly Settings
+
+Settings for reassembling search results.
+
+<ParamField path="assembly.maxChunkDistance" type="number" default="3">
+  Maximum sort_order difference to merge chunks.
+</ParamField>
+
+<ParamField path="assembly.maxParentChainDepth" type="number" default="10">
+  Maximum depth for parent context traversal.
+</ParamField>
+
+<ParamField path="assembly.childLimit" type="number" default="3">
+  Maximum number of child chunks to include.
+</ParamField>
+
+<ParamField path="assembly.precedingSiblingsLimit" type="number" default="1">
+  Number of preceding sibling chunks to include.
+</ParamField>
+
+<ParamField path="assembly.subsequentSiblingsLimit" type="number" default="2">
+  Number of subsequent sibling chunks to include.
+</ParamField>
+
+## Provider-Specific Configuration
+
+For detailed configuration of embedding providers (OpenAI, Ollama, Gemini, Azure, AWS), see the [Embedding Models](/guides/embedding-models) guide.

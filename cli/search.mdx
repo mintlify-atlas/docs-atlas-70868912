@@ -1,0 +1,244 @@
+---
+title: search
+description: Query the documentation index used by the MCP server
+---
+
+## Usage
+
+```bash
+docs-mcp-server search <library> <query> [options]
+```
+
+## Arguments
+
+<ParamField path="library" type="string" required>
+  Name of the library to search
+</ParamField>
+
+<ParamField path="query" type="string" required>
+  Search query string
+</ParamField>
+
+## Options
+
+<ParamField path="--version, -v" type="string">
+  Version of the library (optional). Supports semantic version ranges and wildcards.
+  
+  If not specified, searches the latest available version.
+</ParamField>
+
+<ParamField path="--limit, -l" type="number" default="5">
+  Maximum number of results to return
+</ParamField>
+
+<ParamField path="--exact-match, -e" type="boolean" default="false">
+  Only use exact version match. When disabled, searches for the specified version or earlier compatible versions.
+</ParamField>
+
+<ParamField path="--embedding-model" type="string">
+  Embedding model configuration in format `provider:model-name`.
+  
+  Must match the model used during scraping for accurate results.
+</ParamField>
+
+<ParamField path="--server-url" type="string">
+  URL of external pipeline worker RPC endpoint (e.g., `http://localhost:8080/api`).
+  
+  When specified, queries are sent to the remote worker.
+</ParamField>
+
+## Examples
+
+### Basic Search
+
+```bash
+# Search React documentation
+docs-mcp-server search react "useState hook"
+
+# Search specific version
+docs-mcp-server search react "hooks" --version 18.0.0
+
+# Limit results
+docs-mcp-server search react "hooks" --limit 10
+```
+
+### Version Matching
+
+```bash
+# Search version 18.0.0 or earlier compatible versions
+docs-mcp-server search react "hooks" --version 18.0.0
+
+# Only exact version 18.0.0
+docs-mcp-server search react "hooks" --version 18.0.0 --exact-match
+
+# Wildcard version patterns
+docs-mcp-server search typescript "types" --version 5.x
+docs-mcp-server search typescript "types" --version 5.2.x
+```
+
+### Remote Worker
+
+```bash
+# Query remote documentation index
+docs-mcp-server search react "hooks" \
+  --server-url http://worker.example.com:8080/api
+```
+
+### Custom Embedding Model
+
+```bash
+# Ensure embedding model matches the one used during scraping
+docs-mcp-server search react "hooks" \
+  --embedding-model openai:text-embedding-3-small
+```
+
+## Output
+
+Search results are displayed with relevance scores:
+
+```json
+[
+  {
+    "title": "useState",
+    "url": "https://react.dev/reference/react/useState",
+    "content": "useState is a React Hook that lets you add state to your component...",
+    "score": 0.89,
+    "library": "react",
+    "version": "18.0.0"
+  },
+  {
+    "title": "useEffect",
+    "url": "https://react.dev/reference/react/useEffect",
+    "content": "useEffect is a React Hook that lets you synchronize a component...",
+    "score": 0.82,
+    "library": "react",
+    "version": "18.0.0"
+  }
+]
+```
+
+## Version Matching Behavior
+
+### Default Behavior (Flexible Matching)
+
+By default, the search finds the best matching version:
+
+```bash
+# Searches for 18.0.0 or earlier compatible versions
+docs-mcp-server search react "hooks" --version 18.0.0
+
+# If 18.0.0 not found, may return results from 17.0.0, 16.8.0, etc.
+```
+
+### Exact Match
+
+Use `--exact-match` to only search the specified version:
+
+```bash
+# Only searches React 18.0.0, fails if not found
+docs-mcp-server search react "hooks" --version 18.0.0 --exact-match
+```
+
+### Wildcard Patterns
+
+Supports semantic versioning wildcards:
+
+```bash
+# Matches any TypeScript 5.x.x version
+docs-mcp-server search typescript "types" --version 5.x
+
+# Matches any TypeScript 5.2.x version
+docs-mcp-server search typescript "types" --version 5.2.x
+```
+
+### No Version Specified
+
+Searches the latest available version:
+
+```bash
+# Searches the most recent React version
+docs-mcp-server search react "hooks"
+```
+
+## Relevance Scoring
+
+Results are ranked by semantic similarity:
+
+- **0.9-1.0**: Highly relevant, very similar to query
+- **0.7-0.9**: Relevant, good match
+- **0.5-0.7**: Somewhat relevant
+- **< 0.5**: Low relevance
+
+The scoring is based on vector similarity using the configured embedding model.
+
+## Error Handling
+
+**Library Not Found**
+```bash
+❌ Library 'mylib' not found in index
+# Solution: Check available libraries
+docs-mcp-server list
+```
+
+**Version Not Found**
+```bash
+❌ Version '99.0.0' not found for library 'react'
+# Solution: List available versions
+docs-mcp-server list
+# Or search without version constraint
+docs-mcp-server search react "hooks"
+```
+
+**No Results**
+```bash
+[]
+# The query returned no matches
+# Try:
+# - Broadening your query
+# - Checking library/version
+# - Increasing --limit
+```
+
+**Embedding Model Mismatch**
+```bash
+# Warning: Different embedding model may produce poor results
+# Ensure --embedding-model matches the model used during scraping
+```
+
+## Performance Tips
+
+### Optimize Query Length
+
+```bash
+# Short, focused queries work best
+docs-mcp-server search react "useState"
+
+# Long queries may dilute relevance
+docs-mcp-server search react "how do I use the useState hook in a functional component"
+```
+
+### Adjust Limit
+
+```bash
+# Lower limits are faster
+docs-mcp-server search react "hooks" --limit 5
+
+# Higher limits for comprehensive results
+docs-mcp-server search react "hooks" --limit 20
+```
+
+### Use Specific Versions
+
+```bash
+# Faster: searches specific version
+docs-mcp-server search react "hooks" --version 18.0.0 --exact-match
+
+# Slower: searches multiple versions
+docs-mcp-server search react "hooks"
+```
+
+## See Also
+
+- [scrape](/cli/scrape) - Index documentation for searching
+- [list](/cli/list) - View available libraries and versions
+- [Embedding Models](/guides/embedding-models) - Configure embedding providers

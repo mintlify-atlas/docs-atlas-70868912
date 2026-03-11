@@ -1,0 +1,289 @@
+---
+title: refresh
+description: Update an existing library version by re-scraping changed pages
+---
+
+## Usage
+
+```bash
+docs-mcp-server refresh <library> [options]
+```
+
+## Arguments
+
+<ParamField path="library" type="string" required>
+  Name of the library to refresh
+</ParamField>
+
+## Options
+
+<ParamField path="--version, -v" type="string">
+  Version of the library to refresh (optional). If omitted, refreshes the latest version.
+</ParamField>
+
+<ParamField path="--embedding-model" type="string">
+  Embedding model configuration in format `provider:model-name`.
+  
+  Should match the model used during initial scraping.
+</ParamField>
+
+<ParamField path="--server-url" type="string">
+  URL of external pipeline worker RPC endpoint (e.g., `http://localhost:8080/api`).
+  
+  When specified, the refresh job is sent to the remote worker.
+</ParamField>
+
+## Examples
+
+### Basic Refresh
+
+```bash
+# Refresh latest version
+docs-mcp-server refresh react
+
+# Refresh specific version
+docs-mcp-server refresh react --version 18.0.0
+```
+
+### Remote Worker
+
+```bash
+# Send refresh job to remote worker
+docs-mcp-server refresh react --version 18.0.0 \
+  --server-url http://worker.example.com:8080/api
+```
+
+### Custom Embedding Model
+
+```bash
+# Ensure model matches original scrape
+docs-mcp-server refresh react --version 18.0.0 \
+  --embedding-model openai:text-embedding-3-small
+```
+
+## Output
+
+The command displays progress during refresh:
+
+```
+⏳ Initializing refresh job...
+🚀 Refreshing react v18.0.0...
+📄 Refreshing react v18.0.0: 12/342 pages
+✅ Successfully refreshed 12 pages
+```
+
+## How It Works
+
+### ETag-Based Updates
+
+The refresh command uses HTTP ETags to efficiently detect changes:
+
+1. **Check ETags**: For each indexed URL, the server sends an HTTP HEAD request with the stored ETag
+2. **Compare Responses**:
+   - If ETag matches (304 Not Modified): Skip the page
+   - If ETag differs or missing: Re-scrape and re-index the page
+3. **Handle Deletions**: If a page returns 404, remove it from the index
+
+### Efficiency
+
+Refresh is much faster than full re-scraping:
+
+```bash
+# Full scrape: Downloads all 342 pages
+docs-mcp-server scrape react https://react.dev --version 18.0.0
+# Time: 5-10 minutes
+
+# Refresh: Only downloads changed pages (e.g., 12 pages)
+docs-mcp-server refresh react --version 18.0.0
+# Time: 30-60 seconds
+```
+
+## Requirements
+
+### Library Must Be Indexed
+
+The library and version must already exist in the index:
+
+```bash
+# Error if not indexed
+docs-mcp-server refresh mylib --version 1.0.0
+❌ Refresh failed: Library 'mylib' version '1.0.0' not found
+
+# Solution: Scrape first
+docs-mcp-server scrape mylib https://example.com --version 1.0.0
+docs-mcp-server refresh mylib --version 1.0.0
+```
+
+### Server Must Support ETags
+
+The documentation server must return ETag headers:
+
+```http
+HTTP/1.1 200 OK
+ETag: "abc123"
+Content-Type: text/html
+```
+
+If ETags are not supported, refresh will re-scrape all pages.
+
+### Original URL Must Be Accessible
+
+Refresh re-visits the original URLs from the scrape. If URLs changed:
+
+```bash
+# URLs changed from https://old.example.com to https://new.example.com
+docs-mcp-server refresh mylib --version 1.0.0
+# May fail with 404 errors
+
+# Solution: Remove and re-scrape with new URL
+docs-mcp-server remove mylib --version 1.0.0
+docs-mcp-server scrape mylib https://new.example.com --version 1.0.0
+```
+
+## Behavior
+
+### Changed Pages
+
+Pages with different ETags are re-scraped:
+
+```
+📄 Refreshing react v18.0.0: 1/342 pages
+# Page content changed, re-indexing...
+```
+
+### Unchanged Pages
+
+Pages with matching ETags are skipped:
+
+```
+# 330 pages unchanged, skipped
+```
+
+### Deleted Pages
+
+Pages returning 404 are removed from the index:
+
+```
+# Page deleted, removing from index...
+```
+
+### New Pages
+
+Refresh does NOT discover new pages. It only checks existing URLs from the original scrape.
+
+To add new pages:
+
+```bash
+# Option 1: Full re-scrape
+docs-mcp-server scrape mylib https://example.com --version 1.0.0
+
+# Option 2: Append mode scrape
+docs-mcp-server scrape mylib https://example.com/new-section \
+  --version 1.0.0 --clean false
+```
+
+## Use Cases
+
+### Daily Updates
+
+Keep documentation in sync with daily changes:
+
+```bash
+# Cron job: Daily refresh at 2 AM
+0 2 * * * docs-mcp-server refresh react --version 18.0.0
+```
+
+### After Documentation Updates
+
+Refresh after upstream documentation changes:
+
+```bash
+# Docs updated on react.dev
+docs-mcp-server refresh react --version 18.0.0
+```
+
+### Verify Scrape Quality
+
+Re-check pages that may have failed:
+
+```bash
+# Some pages failed during scrape
+docs-mcp-server scrape mylib https://example.com --ignore-errors
+
+# Retry failed pages
+docs-mcp-server refresh mylib
+```
+
+## Performance Tips
+
+### Refresh Specific Versions
+
+```bash
+# Faster: Refresh specific version
+docs-mcp-server refresh react --version 18.0.0
+
+# Slower: Refresh latest (must determine latest first)
+docs-mcp-server refresh react
+```
+
+### Schedule During Off-Peak
+
+Run refresh during low-traffic periods:
+
+```bash
+# Cron: 2 AM daily
+0 2 * * * docs-mcp-server refresh mylib --version 1.0.0
+```
+
+### Batch Multiple Libraries
+
+```bash
+# Shell script to refresh multiple libraries
+for lib in react typescript vue; do
+  docs-mcp-server refresh $lib
+done
+```
+
+## Error Handling
+
+**Library Not Found**
+```bash
+❌ Refresh failed: Library 'mylib' not found
+# Solution: Check available libraries
+docs-mcp-server list
+```
+
+**Version Not Found**
+```bash
+❌ Refresh failed: Version '99.0.0' not found for library 'react'
+# Solution: Check available versions
+docs-mcp-server list
+```
+
+**Network Errors**
+```bash
+❌ Refresh failed: Connection timeout
+# Solution: Check network connectivity and retry
+```
+
+**No ETag Support**
+```
+⚠️ Warning: Server does not support ETags, re-scraping all pages
+```
+
+## Comparison with Scrape
+
+| Feature | `refresh` | `scrape` |
+|---------|-----------|----------|
+| **Purpose** | Update existing docs | Index new docs |
+| **Speed** | Fast (only changed pages) | Slower (all pages) |
+| **New pages** | Not discovered | Discovered via crawling |
+| **Deleted pages** | Removed from index | N/A |
+| **Requirements** | Library must exist | Creates new library |
+| **ETag support** | Required for efficiency | Not used |
+
+## See Also
+
+- [scrape](/cli/scrape) - Initial documentation indexing
+- [remove](/cli/remove) - Delete library versions
+- [list](/cli/list) - View indexed libraries

@@ -1,0 +1,427 @@
+---
+title: Code Style Guide
+description: Code conventions, formatting rules, and best practices for the Grounded Docs MCP Server
+---
+
+## Overview
+
+This project uses [Biome](https://biomejs.dev/) for linting and formatting. All code style rules are automatically enforced through pre-commit hooks.
+
+## Quick Reference
+
+```bash
+# Check for code issues
+npm run lint
+
+# Auto-fix issues
+npm run lint:fix
+
+# Format code
+npm run format
+
+# Type check
+npm run typecheck
+```
+
+## Formatting Rules
+
+Biome configuration (`biome.json`):
+
+- **Indent Style**: Spaces (2 spaces)
+- **Line Width**: 90 characters
+- **Line Ending**: LF (Unix-style)
+- **Attribute Position**: Auto
+
+<Note>
+  Biome automatically formats your code during pre-commit. You don't need to run the formatter manually, but it's available if needed.
+</Note>
+
+## TypeScript Conventions
+
+### Strictness
+
+- **No `any`** - Avoid `any` type unless absolutely necessary
+- **No non-null assertions** - Don't use `!` operator (except in tests)
+- Use strict TypeScript configuration
+
+**Bad:**
+```typescript
+const data: any = fetchData(); // ❌ Avoid any
+const value = data!.field; // ❌ No non-null assertions
+```
+
+**Good:**
+```typescript
+interface FetchResult {
+  field: string;
+}
+
+const data: FetchResult = fetchData(); // ✅ Explicit types
+const value = data?.field ?? 'default'; // ✅ Safe access
+```
+
+### Imports
+
+- All imports must be at the top of the file
+- Biome auto-sorts imports
+- No unused imports allowed
+
+```typescript
+import { VersionNotFoundInStoreError } from "../store";
+import type { IDocumentManagement } from "../store/trpc/interfaces";
+import type { StoreSearchResult } from "../store/types";
+import { logger } from "../utils/logger";
+import { ValidationError } from "./errors";
+```
+
+### Naming Conventions
+
+| Type | Convention | Example |
+|------|------------|----------|
+| Classes | `PascalCase` | `SearchTool`, `PipelineManager` |
+| Interfaces | `PascalCase` with `I` prefix | `IDocumentManagement` |
+| Types | `PascalCase` | `SearchToolOptions`, `LogLevel` |
+| Variables | `camelCase` | `documentService`, `searchQuery` |
+| Functions | `camelCase` | `executeSearch()`, `validateInput()` |
+| Methods | `camelCase` | `execute()`, `listLibraries()` |
+| Constants (global) | `UPPER_SNAKE_CASE` | `DEFAULT_CONFIG`, `LOG_LEVEL` |
+| Constants (local) | `camelCase` | `maxRetries`, `defaultLimit` |
+| Private fields | `camelCase` | `docService`, `currentLevel` |
+
+**Example:**
+```typescript
+// Constants
+const DEFAULT_LIMIT = 5;
+const MAX_RESULTS = 100;
+
+// Interface
+interface ISearchProvider {
+  search(query: string): Promise<SearchResult[]>;
+}
+
+// Class
+class SearchTool {
+  private docService: IDocumentManagement;
+  
+  constructor(docService: IDocumentManagement) {
+    this.docService = docService;
+  }
+  
+  async execute(options: SearchToolOptions): Promise<SearchToolResult> {
+    // Implementation
+  }
+}
+```
+
+### TSDoc Comments
+
+All exported functions, classes, and methods must have TSDoc comments.
+
+**Format:**
+1. Summary first
+2. Then `@param` tags
+3. Then `@returns` tag
+4. Then other tags if needed
+
+```typescript
+/**
+ * Tool for searching indexed documentation.
+ * Supports exact version matches and version range patterns.
+ * Returns available versions when requested version is not found.
+ */
+export class SearchTool {
+  /**
+   * Executes a documentation search.
+   * @param options - Search configuration including library, version, and query
+   * @returns Search results with matching document chunks
+   */
+  async execute(options: SearchToolOptions): Promise<SearchToolResult> {
+    // Implementation
+  }
+}
+
+/**
+ * Sets the current logging level for the application.
+ * @param level - The log level to set
+ */
+export function setLogLevel(level: LogLevel): void {
+  currentLogLevel = level;
+}
+```
+
+## Error Handling
+
+### Boundaries
+
+Use `try/catch` at API/CLI boundaries:
+
+```typescript
+// At API boundary
+app.post('/search', async (req, reply) => {
+  try {
+    const result = await searchTool.execute(req.body);
+    return result;
+  } catch (error) {
+    logger.error(`❌ Search failed: ${error.message}`);
+    reply.status(500).send({ error: error.message });
+  }
+});
+```
+
+### Logging Errors
+
+Log errors with the `❌` emoji prefix:
+
+```typescript
+import { logger } from "../utils/logger";
+
+try {
+  await riskyOperation();
+} catch (error) {
+  logger.error(`❌ Operation failed: ${error.message}`);
+  throw error;
+}
+```
+
+### HTTP Status Codes
+
+Return standard HTTP codes:
+
+- `200` - Success
+- `400` - Bad Request (validation errors)
+- `404` - Not Found
+- `500` - Internal Server Error
+
+### Error Sanitization
+
+Sanitize binary content from error logs:
+
+```typescript
+// Don't log binary data
+logger.error(`Failed to process file: ${filename}`);
+
+// Not this:
+logger.error(`Failed to process: ${binaryContent}`);
+```
+
+## Web UI Conventions
+
+### AlpineJS Components
+
+Components use TSX with `kitajs`:
+
+```tsx
+import type { PropsWithChildren } from "@kitajs/html";
+
+interface CardProps {
+  title: string;
+  active?: boolean;
+}
+
+export function Card({ title, active, children }: PropsWithChildren<CardProps>) {
+  return (
+    <div class={active ? "card card-active" : "card"}>
+      <h3>{title}</h3>
+      {children}
+    </div>
+  );
+}
+```
+
+### Conditionals
+
+Use ternary operators, **not** logical AND:
+
+**Bad:**
+```tsx
+{foo && <Bar />} {/* ❌ Avoid */}
+```
+
+**Good:**
+```tsx
+{foo ? <Bar /> : null} {/* ✅ Use ternary */}
+```
+
+### Styling
+
+Use TailwindCSS utility classes:
+
+```tsx
+<div class="flex items-center gap-4 p-6 rounded-lg border border-gray-200">
+  <span class="text-sm font-medium text-gray-700">Status</span>
+</div>
+```
+
+## Logging Strategy
+
+The project has a specific logging hierarchy:
+
+### User Output
+
+Use `console.*` for CLI results:
+
+```typescript
+// Direct user feedback
+console.log(`✅ Indexed ${count} documents`);
+console.error(`Error: Library not found`);
+```
+
+### Application Events
+
+Use `logger.info` for meaningful state changes:
+
+```typescript
+import { logger } from "./utils/logger";
+
+logger.info(`🔗 Starting scraper for ${library}@${version}`);
+logger.info(`✅ Job ${jobId} completed successfully`);
+```
+
+### Debugging
+
+Use `logger.debug` for granular flow (disabled by default):
+
+```typescript
+logger.debug(`Processing chunk ${index} of ${total}`);
+logger.debug(`Cache hit for key: ${cacheKey}`);
+```
+
+### Emoji Prefixes
+
+Use emojis for meaningful logs (but **never** in debug logs):
+
+- `🔗` - Starting/connecting
+- `✅` - Success
+- `❌` - Error
+- `⚠️` - Warning
+- `📦` - Package/library operations
+- `🔍` - Search operations
+
+```typescript
+logger.info(`🔍 Searching ${library} for "${query}"`);
+logger.info(`✅ Found ${results.length} matches`);
+logger.error(`❌ Scraping failed: ${error.message}`);
+```
+
+<Warning>
+  **Never** use emojis in `debug` logs. Debug logs should be plain text for easy parsing and filtering.
+</Warning>
+
+## Testing Code Style
+
+Test files have relaxed rules:
+
+- **Non-null assertions allowed**: `data!` is okay in tests
+- **`any` type allowed**: For mocking complex types
+
+```typescript
+// In tests (*.test.ts files)
+import { describe, it, expect, vi } from 'vitest';
+
+describe('SearchTool', () => {
+  it('should search documents', async () => {
+    const mockService: any = { // ✅ any is okay in tests
+      search: vi.fn().mockResolvedValue([])
+    };
+    
+    const tool = new SearchTool(mockService);
+    const result = await tool.execute(options);
+    
+    expect(result.results).toBeDefined();
+    expect(mockService.search).toHaveBeenCalledWith(/* ... */);
+  });
+});
+```
+
+## Configuration Files
+
+### biome.json
+
+The Biome configuration defines:
+
+```json
+{
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 90,
+    "lineEnding": "lf"
+  },
+  "files": {
+    "includes": ["**/src/**/*.ts"]
+  },
+  "overrides": [
+    {
+      "includes": ["**/src/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+### lint-staged
+
+Pre-commit hooks run:
+
+```json
+{
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx,json,md}": [
+      "biome check --write --no-errors-on-unmatched",
+      "biome format --write --no-errors-on-unmatched"
+    ]
+  }
+}
+```
+
+## Best Practices Summary
+
+<AccordionGroup>
+  <Accordion title="Type Safety">
+    - Always use explicit types
+    - Avoid `any` unless in tests
+    - No non-null assertions in production code
+    - Use type imports when importing only types
+  </Accordion>
+
+  <Accordion title="Code Organization">
+    - Imports at the top, auto-sorted
+    - One class/interface per file (except small types)
+    - Group related functions together
+    - Keep files focused on single responsibility
+  </Accordion>
+
+  <Accordion title="Documentation">
+    - TSDoc for all exported items
+    - Summary first, then params/returns
+    - Update docs when changing interfaces
+    - Add examples for complex APIs
+  </Accordion>
+
+  <Accordion title="Error Handling">
+    - Use try/catch at boundaries
+    - Log errors with emoji prefixes
+    - Sanitize sensitive data from logs
+    - Return standard HTTP codes
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing Guide" icon="flask" href="/contributing/testing">
+    Learn about testing conventions and strategies
+  </Card>
+  <Card title="Architecture Patterns" icon="sitemap" href="/contributing/architecture-patterns">
+    Understand the system architecture
+  </Card>
+</CardGroup>

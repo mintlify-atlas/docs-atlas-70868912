@@ -1,0 +1,193 @@
+---
+title: "Basic Usage"
+description: "Learn how to use the Web UI, CLI, and AI Assistant to manage documentation"
+---
+
+Once the server is running, you can interact with it via the Web Interface, CLI, or your AI Assistant.
+
+## Web Interface
+
+If you are running the Standalone Server (Docker or npx), the web interface is available at:
+
+**`http://localhost:6280`**
+
+<CardGroup cols={2}>
+  <Card title="Add Documentation" icon="plus">
+    Submit URLs or file paths for indexing
+  </Card>
+  <Card title="Monitor Jobs" icon="chart-line">
+    Watch scraping and indexing progress in real-time
+  </Card>
+  <Card title="Manage Libraries" icon="books">
+    View and delete indexed documentation
+  </Card>
+  <Card title="Search" icon="magnifying-glass">
+    Manually test search queries to see what the AI will see
+  </Card>
+</CardGroup>
+
+### Launching Web UI for Embedded Server
+
+If you are using the Embedded Server (running inside your AI tool), it does not expose a web interface by default. You can launch a temporary web UI that connects to the same database:
+
+```bash
+OPENAI_API_KEY="your-key" npx @arabold/docs-mcp-server@latest web --port 6281
+```
+
+Open `http://localhost:6281`. Stop the process (`Ctrl+C`) when finished.
+
+<Note>
+  The web UI connects to the same database as your embedded server, so changes are reflected immediately.
+</Note>
+
+## CLI Usage
+
+You can manage the server using command-line tools.
+
+<Warning>
+  If you are using the Embedded Server, ensure you don't run concurrent write operations (scraping) if the database is locked.
+</Warning>
+
+<CodeGroup>
+
+```bash List libraries
+npx @arabold/docs-mcp-server@latest list
+```
+
+```bash Search documentation
+npx @arabold/docs-mcp-server@latest search react "useState hook"
+```
+
+```bash Scrape new documentation
+npx @arabold/docs-mcp-server@latest scrape react https://react.dev/reference/react
+```
+
+```bash Remove library
+npx @arabold/docs-mcp-server@latest remove react
+```
+
+```bash View configuration
+npx @arabold/docs-mcp-server@latest config view
+```
+
+</CodeGroup>
+
+See the [CLI Reference](/cli/overview) for complete command documentation.
+
+## Scraping Local Files
+
+You can index documentation from your local filesystem using `file://` URLs. This works in both the Web UI and CLI.
+
+### Requirements
+
+<CardGroup cols={2}>
+  <Card title="Text-Based Files" icon="file-lines">
+    HTML, Markdown, JS, TS, Python, Java, etc.
+  </Card>
+  <Card title="Binary Files Ignored" icon="file-pdf">
+    PDF, images are not processed via file:// URLs
+  </Card>
+</CardGroup>
+
+<Warning>
+  **Docker Users:** You must mount the local directory into the container first.
+</Warning>
+
+### Examples
+
+<Steps>
+  <Step title="Single File">
+    ```bash
+    file:///Users/me/docs/index.html
+    ```
+  </Step>
+  
+  <Step title="Directory">
+    ```bash
+    file:///Users/me/docs/my-library
+    ```
+  </Step>
+</Steps>
+
+### Docker Example
+
+If your docs are in `/absolute/path/to/docs` on your host:
+
+<Steps>
+  <Step title="Mount the volume">
+    ```bash
+    docker run --rm \
+      -v /absolute/path/to/docs:/docs:ro \
+      -v docs-mcp-data:/data \
+      -v docs-mcp-config:/config \
+      -p 6280:6280 \
+      ghcr.io/arabold/docs-mcp-server:latest
+    ```
+  </Step>
+  
+  <Step title="Scrape using the container path">
+    In the Web UI or CLI, use: `file:///docs`
+  </Step>
+</Steps>
+
+## AI Assistant Usage
+
+Once connected, your AI assistant (Claude, Cline, etc.) will have access to tools like `scrape_docs` and `search_docs`.
+
+### Example Prompts
+
+<AccordionGroup>
+  <Accordion title="Scraping Documentation">
+    **Prompt:**
+    > "Please scrape the React documentation from https://react.dev/reference/react for library 'react' version '18.x'"
+    
+    The AI will use the `scrape_docs` tool to index the documentation.
+  </Accordion>
+  
+  <Accordion title="Searching Documentation">
+    **Prompt:**
+    > "How does the useState hook work in React? Please check the documentation."
+    
+    The AI will use `search_docs` to find relevant documentation and provide an answer based on the indexed content.
+  </Accordion>
+  
+  <Accordion title="Finding Versions">
+    **Prompt:**
+    > "What versions of Next.js documentation do we have indexed?"
+    
+    The AI will use `list_libraries` to show all indexed libraries and their versions.
+  </Accordion>
+</AccordionGroup>
+
+## Common Workflows
+
+<CardGroup cols={2}>
+  <Card title="Add Framework Docs" icon="code" href="/guides/scraping-sources">
+    Learn how to index documentation from various sources
+  </Card>
+  <Card title="Search Documentation" icon="magnifying-glass" href="/guides/searching-docs">
+    Master search queries and version matching
+  </Card>
+  <Card title="Configure Embeddings" icon="brain" href="/guides/embedding-models">
+    Set up semantic search with embedding models
+  </Card>
+  <Card title="CLI Commands" icon="terminal" href="/cli/overview">
+    Explore all available CLI commands
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Steps>
+  <Step title="Enable Semantic Search">
+    [Configure embedding models](/guides/embedding-models) for better search results
+  </Step>
+  
+  <Step title="Index Your Documentation">
+    [Learn about different source types](/guides/scraping-sources) and how to index them
+  </Step>
+  
+  <Step title="Optimize Search">
+    [Master search queries](/guides/searching-docs) to get the most relevant results
+  </Step>
+</Steps>

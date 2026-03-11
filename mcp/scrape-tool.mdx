@@ -1,0 +1,369 @@
+---
+title: Scraping Tools
+description: Index and manage documentation with scrape_docs, refresh_version, and remove_docs
+---
+
+The scraping tools allow you to index new documentation, refresh existing versions, and remove indexed content.
+
+<Warning>
+These tools are **disabled in read-only mode**. Configure `readOnly: false` to enable write operations.
+</Warning>
+
+## scrape_docs
+
+Index documentation from a URL for a library version.
+
+**MCP Tool Name:** `scrape_docs`
+
+**Source:** `src/tools/ScrapeTool.ts`
+
+### Parameters
+
+<ParamField path="library" type="string" required>
+  Library name to index
+</ParamField>
+
+<ParamField path="url" type="string" required>
+  Documentation root URL to scrape (must be valid HTTP/HTTPS)
+</ParamField>
+
+<ParamField path="version" type="string | null" optional>
+  Library version (e.g., "5.4.2", "18.0.0"). Omit or pass null for unversioned docs.
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  Scraping configuration options
+  
+  <ParamField path="maxPages" type="number" default="1000">
+    Maximum number of pages to scrape
+  </ParamField>
+  
+  <ParamField path="maxDepth" type="number" default="10">
+    Maximum navigation depth from the root URL
+  </ParamField>
+  
+  <ParamField path="scope" type="'subpages' | 'hostname' | 'domain'" default="subpages">
+    Crawling boundary:
+    - `subpages`: Only crawl URLs within the same path as the starting URL
+    - `hostname`: Crawl any URL on the same hostname
+    - `domain`: Crawl any URL on the same top-level domain (including subdomains)
+  </ParamField>
+  
+  <ParamField path="followRedirects" type="boolean" default="true">
+    Whether to follow HTTP redirects (3xx responses). When false, throws RedirectError.
+  </ParamField>
+  
+  <ParamField path="maxConcurrency" type="number" default="5">
+    Maximum number of concurrent requests
+  </ParamField>
+  
+  <ParamField path="ignoreErrors" type="boolean" default="true">
+    Continue scraping if individual pages fail
+  </ParamField>
+  
+  <ParamField path="scrapeMode" type="'fetch' | 'playwright' | 'auto'" default="auto">
+    HTML processing strategy:
+    - `fetch`: Simple DOM parser (faster, less JS support)
+    - `playwright`: Headless browser (slower, full JS support)
+    - `auto`: Automatically select best strategy
+  </ParamField>
+  
+  <ParamField path="includePatterns" type="string[]" optional>
+    Regex patterns for including URLs. Regex patterns must be wrapped in slashes: `/pattern/`
+  </ParamField>
+  
+  <ParamField path="excludePatterns" type="string[]" optional>
+    Regex patterns for excluding URLs. Exclude takes precedence over include. Regex patterns must be wrapped in slashes: `/pattern/`
+  </ParamField>
+  
+  <ParamField path="headers" type="Record<string, string>" optional>
+    Custom HTTP headers to send with each request (e.g., for authentication)
+  </ParamField>
+  
+  <ParamField path="clean" type="boolean" default="true">
+    If true, clears existing documents for the library version before scraping. If false, appends to existing documents.
+  </ParamField>
+</ParamField>
+
+<ParamField path="waitForCompletion" type="boolean" default="false">
+  Whether to wait for scraping to complete. When false (default for MCP), returns jobId immediately.
+</ParamField>
+
+### Response Structure
+
+<ResponseField name="jobId" type="string">
+  UUID of the scraping job (returned when waitForCompletion is false)
+</ResponseField>
+
+<ResponseField name="pagesScraped" type="number">
+  Number of pages successfully scraped (returned when waitForCompletion is true)
+</ResponseField>
+
+### TypeScript Types
+
+```typescript
+interface ScrapeToolOptions {
+  library: string;
+  version?: string | null;
+  url: string;
+  options?: {
+    maxPages?: number;
+    maxDepth?: number;
+    scope?: "subpages" | "hostname" | "domain";
+    followRedirects?: boolean;
+    maxConcurrency?: number;
+    ignoreErrors?: boolean;
+    scrapeMode?: ScrapeMode;
+    includePatterns?: string[];
+    excludePatterns?: string[];
+    headers?: Record<string, string>;
+    clean?: boolean;
+  };
+  waitForCompletion?: boolean;
+}
+
+enum ScrapeMode {
+  Fetch = "fetch",
+  Playwright = "playwright",
+  Auto = "auto"
+}
+
+type ScrapeExecuteResult = ScrapeResult | { jobId: string };
+```
+
+See `src/tools/ScrapeTool.ts:8-73` for complete type definitions.
+
+### Example Request
+
+```json
+{
+  "name": "scrape_docs",
+  "arguments": {
+    "library": "react",
+    "version": "18.2.0",
+    "url": "https://react.dev/",
+    "maxPages": 500,
+    "maxDepth": 5,
+    "scope": "subpages",
+    "followRedirects": true
+  }
+}
+```
+
+### Example Response
+
+```json
+{
+  "jobId": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+### MCP Output
+
+When called through MCP (see `src/mcp/mcpServer.ts:42`):
+
+```
+🚀 Scraping job started with ID: 550e8400-e29b-41d4-a716-446655440000.
+```
+
+### Error Cases
+
+**Invalid version format:**
+```json
+{
+  "error": "Invalid version format for scraping: 'invalid'. Use 'X.Y.Z', 'X.Y.Z-prerelease', 'X.Y', 'X', or omit."
+}
+```
+
+**Invalid URL:**
+```json
+{
+  "error": "URL must be a valid HTTP/HTTPS URL."
+}
+```
+
+### Version Format Support
+
+The tool accepts and normalizes various version formats:
+
+- Full semver: `"18.2.0"` → `"18.2.0"`
+- Partial version: `"18.2"` → `"18.2.0"` (coerced)
+- Major only: `"18"` → `"18.0.0"` (coerced)
+- Unversioned: `null` or `""` → `""` (empty string)
+- Prerelease: `"18.3.0-rc.1"` → `"18.3.0-rc.1"`
+
+See `src/tools/ScrapeTool.ts:98-124` for version normalization logic.
+
+### Scope Examples
+
+Given starting URL `https://react.dev/reference/react/hooks`:
+
+**subpages** (default):
+- ✅ `https://react.dev/reference/react/hooks/useState`
+- ✅ `https://react.dev/reference/react/hooks/useEffect`
+- ❌ `https://react.dev/learn` (different path)
+- ❌ `https://legacy.reactjs.org/` (different hostname)
+
+**hostname**:
+- ✅ `https://react.dev/reference/react/hooks`
+- ✅ `https://react.dev/learn`
+- ❌ `https://legacy.reactjs.org/` (different hostname)
+
+**domain**:
+- ✅ `https://react.dev/reference/react/hooks`
+- ✅ `https://legacy.react.dev/` (subdomain)
+- ❌ `https://reactjs.org/` (different domain)
+
+---
+
+## refresh_version
+
+Re-scrape a previously indexed library version, updating only changed pages.
+
+**MCP Tool Name:** `refresh_version`
+
+**Source:** `src/tools/RefreshTool.ts` (uses same underlying ScrapeTool)
+
+### Parameters
+
+<ParamField path="library" type="string" required>
+  Library name to refresh
+</ParamField>
+
+<ParamField path="version" type="string" optional>
+  Version to refresh (defaults to latest if omitted)
+</ParamField>
+
+### Response Structure
+
+<ResponseField name="jobId" type="string">
+  UUID of the refresh job
+</ResponseField>
+
+### Example Request
+
+```json
+{
+  "name": "refresh_version",
+  "arguments": {
+    "library": "react",
+    "version": "18.2.0"
+  }
+}
+```
+
+### MCP Output
+
+```
+🔄 Refresh job started with ID: 550e8400-e29b-41d4-a716-446655440000.
+```
+
+### Difference from scrape_docs
+
+- **scrape_docs**: Indexes from scratch (clears existing data by default)
+- **refresh_version**: Re-scrapes existing version, only updates changed pages
+
+---
+
+## remove_docs
+
+Remove indexed documentation for a library version.
+
+**MCP Tool Name:** `remove_docs`
+
+**Source:** `src/tools/RemoveTool.ts`
+
+<Warning>
+This is a **destructive operation**. All documents for the specified version will be permanently deleted.
+</Warning>
+
+### Parameters
+
+<ParamField path="library" type="string" required>
+  Library name
+</ParamField>
+
+<ParamField path="version" type="string" optional>
+  Version to remove (defaults to latest if omitted)
+</ParamField>
+
+### Response Structure
+
+<ResponseField name="message" type="string">
+  Confirmation message
+</ResponseField>
+
+### Example Request
+
+```json
+{
+  "name": "remove_docs",
+  "arguments": {
+    "library": "react",
+    "version": "17.0.2"
+  }
+}
+```
+
+### MCP Output
+
+```
+Removed documentation for react@17.0.2.
+```
+
+### Error Cases
+
+**Library not found:**
+```json
+{
+  "error": "Library 'nonexistent' not found in store."
+}
+```
+
+**Version not found:**
+```json
+{
+  "error": "Version '99.0.0' not found for library 'react'."
+}
+```
+
+---
+
+## Job Management
+
+Since scraping operations are asynchronous, use the [job management tools](/mcp/job-management) to monitor progress:
+
+- [list_jobs](/mcp/job-management#list-jobs) - See all scraping jobs
+- [get_job_info](/mcp/job-management#get-job-info) - Check job status and progress
+- [cancel_job](/mcp/job-management#cancel-job) - Stop a running job
+
+### Example Workflow
+
+```typescript
+// 1. Start scraping
+const { jobId } = await scrapeDocs({
+  library: "react",
+  version: "18.2.0",
+  url: "https://react.dev/"
+});
+
+// 2. Check progress
+const { job } = await getJobInfo({ jobId });
+console.log(`Status: ${job.status}, Progress: ${job.progress?.pages}/${job.progress?.totalPages}`);
+
+// 3. Wait for completion
+while (job.status === "running" || job.status === "queued") {
+  await sleep(5000);
+  const { job: updated } = await getJobInfo({ jobId });
+  console.log(`Progress: ${updated.progress?.pages}/${updated.progress?.totalPages}`);
+}
+
+console.log(`Completed: ${job.status}`);
+```
+
+## Related Tools
+
+- [list_jobs](/mcp/job-management#list-jobs) - Monitor scraping jobs
+- [get_job_info](/mcp/job-management#get-job-info) - Check job progress
+- [cancel_job](/mcp/job-management#cancel-job) - Cancel a running job
+- [search_docs](/mcp/search-tool) - Search indexed documentation

@@ -1,0 +1,414 @@
+---
+title: "Web Interface"
+description: "Using the web UI to manage documentation libraries"
+---
+
+The Grounded Docs web interface provides a user-friendly way to manage your documentation libraries, monitor indexing jobs, and test search queries.
+
+## Accessing the Web UI
+
+The web interface is available at:
+
+**`http://localhost:6280`**
+
+<Note>
+  The default port is 6280. You can change it using `--port` or `DOCS_MCP_SERVER_PORT`.
+</Note>
+
+## Interface Overview
+
+The web UI consists of four main sections:
+
+<CardGroup cols={2}>
+  <Card title="Libraries" icon="books">
+    View all indexed libraries and their versions
+  </Card>
+  <Card title="Add Documentation" icon="plus">
+    Submit URLs or file paths for indexing
+  </Card>
+  <Card title="Jobs" icon="list-check">
+    Monitor scraping and indexing progress
+  </Card>
+  <Card title="Search" icon="magnifying-glass">
+    Test search queries and see results
+  </Card>
+</CardGroup>
+
+## Managing Libraries
+
+### Viewing Libraries
+
+The **Libraries** page shows all indexed documentation:
+
+- Library name and organization
+- Version numbers
+- Indexing status (Ready, Indexing, Failed)
+- Document count
+- Last updated timestamp
+
+### Adding Documentation
+
+<Steps>
+  <Step title="Navigate to Add Documentation">
+    Click the **Add Documentation** button or tab
+  </Step>
+  
+  <Step title="Enter details">
+    Fill in the form:
+    
+    - **Library Name**: Package or project name (e.g., `react`, `next.js`)
+    - **Version**: Version number or pattern (e.g., `18.3.1`, `18.x`, `latest`)
+    - **URL**: Documentation URL or file path
+    - **Organization** (optional): Group related libraries
+  </Step>
+  
+  <Step title="Configure options">
+    Expand **Advanced Options** to set:
+    
+    - Max pages to scrape
+    - Max depth for link following
+    - Include/exclude URL patterns
+    - Scrape mode (auto, markdown, html, text)
+  </Step>
+  
+  <Step title="Submit">
+    Click **Scrape Documentation** to start indexing
+  </Step>
+</Steps>
+
+### URL Examples
+
+<Tabs>
+  <Tab title="Website">
+    ```
+    https://react.dev/reference/react
+    https://docs.python.org/3/library/
+    https://nextjs.org/docs
+    ```
+  </Tab>
+  
+  <Tab title="GitHub Repository">
+    ```
+    https://github.com/facebook/react
+    https://github.com/vercel/next.js/tree/canary/docs
+    ```
+  </Tab>
+  
+  <Tab title="npm Package">
+    ```
+    npm:lodash
+    npm:@types/node
+    ```
+  </Tab>
+  
+  <Tab title="PyPI Package">
+    ```
+    pypi:requests
+    pypi:django
+    ```
+  </Tab>
+  
+  <Tab title="Local Files">
+    ```
+    file:///Users/me/docs
+    file:///home/user/project/docs
+    file:///C:/Users/me/Documents/docs
+    ```
+  </Tab>
+  
+  <Tab title="ZIP Archive">
+    ```
+    file:///Users/me/downloads/docs.zip
+    ```
+  </Tab>
+</Tabs>
+
+### Removing Libraries
+
+To remove a library:
+
+<Steps>
+  <Step title="Find the library">
+    Locate it in the **Libraries** list
+  </Step>
+  
+  <Step title="Click delete">
+    Click the **Delete** button next to the version
+  </Step>
+  
+  <Step title="Confirm">
+    Confirm the deletion
+  </Step>
+</Steps>
+
+<Warning>
+  Deleting a library removes all indexed documents and embeddings. This action cannot be undone.
+</Warning>
+
+## Monitoring Jobs
+
+The **Jobs** page shows all indexing jobs:
+
+### Job States
+
+<CardGroup cols={2}>
+  <Card title="Queued" icon="clock">
+    Waiting to start (shown in blue)
+  </Card>
+  <Card title="Running" icon="spinner">
+    Currently processing (shown in yellow)
+  </Card>
+  <Card title="Completed" icon="check">
+    Successfully finished (shown in green)
+  </Card>
+  <Card title="Failed" icon="xmark">
+    Encountered an error (shown in red)
+  </Card>
+  <Card title="Cancelled" icon="ban">
+    Stopped by user (shown in gray)
+  </Card>
+</CardGroup>
+
+### Job Details
+
+Each job displays:
+
+- Library name and version
+- Current status and progress percentage
+- Pages scraped / total pages
+- Start time and duration
+- Error message (if failed)
+
+### Job Actions
+
+<Tabs>
+  <Tab title="Cancel Job">
+    For running jobs:
+    
+    <Steps>
+      <Step title="Find running job">
+        Locate the job with "Running" status
+      </Step>
+      
+      <Step title="Click Cancel">
+        Click the **Cancel** button
+      </Step>
+      
+      <Step title="Wait">
+        The job will stop after the current page finishes
+      </Step>
+    </Steps>
+  </Tab>
+  
+  <Tab title="View Details">
+    Click on a job to see:
+    
+    - Full error stack trace (if failed)
+    - Detailed progress log
+    - Configuration used
+    - URLs processed
+  </Tab>
+  
+  <Tab title="Clear Completed">
+    Remove completed jobs from the list:
+    
+    <Steps>
+      <Step title="Click Clear Completed">
+        Button at the top of the jobs list
+      </Step>
+      
+      <Step title="Confirm">
+        This only removes the job records, not the indexed data
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+### Real-Time Updates
+
+The jobs page automatically updates every 3 seconds to show:
+
+- Progress bar updates
+- New jobs starting
+- Jobs completing or failing
+- Page counts increasing
+
+<Info>
+  No page refresh needed - the UI updates live using HTMX.
+</Info>
+
+## Searching Documentation
+
+The **Search** page lets you test queries:
+
+<Steps>
+  <Step title="Select library">
+    Choose a library from the dropdown (or leave blank for all libraries)
+  </Step>
+  
+  <Step title="Enter query">
+    Type your search query (e.g., "useState hook", "authentication")
+  </Step>
+  
+  <Step title="Set version (optional)">
+    Specify a version pattern to search (e.g., "18.x", "latest")
+  </Step>
+  
+  <Step title="Execute search">
+    Click **Search** to see results
+  </Step>
+</Steps>
+
+### Search Results
+
+Each result shows:
+
+- Document title
+- Library name and version
+- Relevance score
+- Text excerpt with highlighted matches
+- Link to source URL
+
+<Tip>
+  Use the search page to verify your documentation is indexed correctly before using it with your AI assistant.
+</Tip>
+
+## Advanced Options
+
+### URL Filtering
+
+Control which pages are scraped:
+
+<ParamField path="Include Patterns" type="string[]">
+  Only scrape URLs matching these patterns (glob syntax)
+  
+  Example: `**/api/**`, `**/reference/**`
+</ParamField>
+
+<ParamField path="Exclude Patterns" type="string[]">
+  Skip URLs matching these patterns
+  
+  Example: `**/blog/**`, `**/changelog/**`
+</ParamField>
+
+### Crawling Scope
+
+<Tabs>
+  <Tab title="No Subpages">
+    Only index the exact URL provided
+    
+    **Use case:** Single documentation page
+  </Tab>
+  
+  <Tab title="Same Hostname">
+    Follow links on the same domain
+    
+    **Use case:** Most documentation sites
+  </Tab>
+  
+  <Tab title="Same Domain">
+    Follow links on the same top-level domain (includes subdomains)
+    
+    **Use case:** Docs spread across subdomains
+  </Tab>
+</Tabs>
+
+### Scrape Mode
+
+<CardGroup cols={2}>
+  <Card title="Auto (Default)" icon="wand-magic-sparkles">
+    Automatically detect and use the best processing method
+  </Card>
+  <Card title="Markdown" icon="markdown">
+    Convert HTML to Markdown, preserving structure
+  </Card>
+  <Card title="HTML" icon="code">
+    Extract text from HTML while keeping some formatting
+  </Card>
+  <Card title="Text" icon="align-left">
+    Extract plain text only
+  </Card>
+</CardGroup>
+
+<Info>
+  For most documentation sites, **Auto** mode works best. Use **Markdown** for cleaner output or **Text** for PDFs.
+</Info>
+
+## Embedded Server Mode
+
+If you're running the server embedded in your AI tool (stdio mode), it doesn't expose a web interface by default.
+
+### Launch Temporary Web UI
+
+Connect to the embedded server's database:
+
+```bash
+OPENAI_API_KEY="your-key" npx @arabold/docs-mcp-server@latest web --port 6281
+```
+
+This starts a read/write web UI on port 6281 that shares the same database.
+
+<Warning>
+  Avoid running concurrent scraping operations from both the embedded server and web UI to prevent database lock conflicts.
+</Warning>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Web UI not loading">
+    **Problem:** Can't access http://localhost:6280
+    
+    **Solutions:**
+    - Check the server is running: `ps aux | grep docs-mcp-server`
+    - Verify the port: Check `--port` or `DOCS_MCP_SERVER_PORT`
+    - Check firewall settings
+    - Try `http://127.0.0.1:6280` instead of `localhost`
+  </Accordion>
+  
+  <Accordion title="Jobs stuck in Running state">
+    **Problem:** Job shows as running but not progressing
+    
+    **Solutions:**
+    - Cancel the job and restart it
+    - Check server logs for errors
+    - Verify the URL is accessible
+    - Check for network issues or rate limiting
+  </Accordion>
+  
+  <Accordion title="Search returns no results">
+    **Problem:** Search doesn't find indexed documentation
+    
+    **Solutions:**
+    - Verify the library is indexed (check Libraries page)
+    - Check the version pattern matches (e.g., `18.x` vs `18.3.1`)
+    - Try a broader search query
+    - Ensure indexing completed successfully (check Jobs page)
+  </Accordion>
+  
+  <Accordion title="File paths not working">
+    **Problem:** `file://` URLs fail to scrape
+    
+    **Solutions:**
+    - Use absolute paths, not relative
+    - Check file permissions (server must be able to read)
+    - For Docker: Verify the volume is mounted correctly
+    - Windows: Use forward slashes: `file:///C:/Users/...`
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Scraping Sources" icon="globe" href="/guides/scraping-sources">
+    Learn about different source types and best practices
+  </Card>
+  <Card title="CLI Usage" icon="terminal" href="/guides/basic-usage">
+    Manage documentation using the command line
+  </Card>
+  <Card title="Configuration" icon="gear" href="/setup/configuration">
+    Customize server settings and behavior
+  </Card>
+  <Card title="MCP Tools" icon="plug" href="/mcp/overview">
+    Use documentation with your AI assistant
+  </Card>
+</CardGroup>

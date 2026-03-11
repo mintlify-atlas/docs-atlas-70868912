@@ -1,0 +1,236 @@
+---
+title: Introduction
+description: Your AI's personal documentation expert that eliminates hallucinations by providing up-to-date, version-specific documentation
+---
+
+# Introduction to Grounded Docs MCP Server
+
+Grounded Docs MCP Server solves a critical problem in AI-assisted development: **hallucinations and outdated knowledge**. When your AI assistant suggests code or answers questions, it often relies on training data that may be months or years old. This leads to deprecated APIs, incorrect syntax, and wasted debugging time.
+
+Grounded Docs provides your AI with a personal, always-current documentation index that fetches official docs directly from websites, GitHub repositories, npm packages, PyPI, and local files. Your AI queries the exact version you're using, grounded in real documentation.
+
+## Why Use Grounded Docs?
+
+<CardGroup cols={2}>
+  <Card title="Eliminate Hallucinations" icon="shield-check">
+    Ground your AI in real documentation instead of relying on potentially outdated training data
+  </Card>
+  
+  <Card title="Version-Specific Accuracy" icon="tag">
+    Query documentation for the exact library versions in your project, not generic answers
+  </Card>
+  
+  <Card title="Privacy First" icon="lock">
+    Runs entirely on your machine - your code and queries never leave your network
+  </Card>
+  
+  <Card title="Universal Compatibility" icon="plug">
+    Works with any MCP-compatible client: Claude, Cursor, Cline, VS Code extensions, and more
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Multiple Documentation Sources
+
+Index documentation from any source:
+- **Websites**: Official documentation sites (React, Next.js, etc.)
+- **GitHub Repositories**: README files, wikis, and markdown docs
+- **Package Registries**: npm and PyPI packages with automatic version detection
+- **Local Files**: Your team's internal documentation, project READMEs, and custom guides
+- **Zip Archives**: Compressed documentation bundles
+
+### Rich File Format Support
+
+The server processes and indexes multiple file types:
+- **Web formats**: HTML, Markdown
+- **Documents**: PDF, Word (.docx), Excel, PowerPoint
+- **Code**: JavaScript, TypeScript, Python, and other source files
+- **Archives**: ZIP files with automatic extraction
+
+### Intelligent Search
+
+<Info>
+  **Semantic search** is optional but dramatically improves result quality by understanding the meaning of your queries, not just matching keywords.
+</Info>
+
+Choose your search mode:
+- **Keyword search**: Fast, no configuration required (default)
+- **Semantic vector search**: Understand meaning and context using embeddings from OpenAI, Ollama, Google Gemini, Azure, or AWS Bedrock
+- **Hybrid search**: Combine both approaches using Reciprocal Rank Fusion for best results
+
+### Flexible Deployment
+
+Run the server in multiple configurations:
+
+<Tabs>
+  <Tab title="Standalone Server">
+    Single process with web interface and MCP endpoints. Perfect for most users.
+    
+    ```bash
+    npx @arabold/docs-mcp-server@latest
+    ```
+    
+    Access the web UI at `http://localhost:6280`
+  </Tab>
+  
+  <Tab title="Embedded Mode">
+    Runs directly inside your AI assistant with no separate process.
+    
+    ```json
+    {
+      "mcpServers": {
+        "docs-mcp-server": {
+          "command": "npx",
+          "args": ["-y", "@arabold/docs-mcp-server@latest"]
+        }
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Docker">
+    Isolated environment with persistent storage.
+    
+    ```bash
+    docker run --rm \
+      -v docs-mcp-data:/data \
+      -v docs-mcp-config:/config \
+      -p 6280:6280 \
+      ghcr.io/arabold/docs-mcp-server:latest \
+      --protocol http --host 0.0.0.0 --port 6280
+    ```
+  </Tab>
+  
+  <Tab title="Distributed (Docker Compose)">
+    Separate worker and coordinator processes for scaling.
+    
+    ```bash
+    docker compose up -d
+    ```
+    
+    See [Deployment Modes](/architecture/deployment-modes) for details.
+  </Tab>
+</Tabs>
+
+## How It Works
+
+<Steps>
+  <Step title="Start the Server">
+    Launch Grounded Docs using npx, Docker, or embedded mode
+  </Step>
+  
+  <Step title="Add Documentation">
+    Use the web interface or CLI to scrape documentation from URLs or local files
+  </Step>
+  
+  <Step title="Automatic Processing">
+    The server fetches content, chunks it intelligently, and generates embeddings (if configured)
+  </Step>
+  
+  <Step title="Connect Your AI">
+    Configure your AI assistant (Claude, Cursor, etc.) to connect to the MCP server
+  </Step>
+  
+  <Step title="Query & Get Accurate Answers">
+    Your AI now has access to current, version-specific documentation for better responses
+  </Step>
+</Steps>
+
+## Use Cases
+
+### Framework Documentation
+
+Keep your AI up-to-date with the latest framework APIs:
+
+```bash
+npx @arabold/docs-mcp-server@latest scrape react https://react.dev/reference/react
+```
+
+Now ask your AI: *"How does the useEffect hook work with cleanup functions?"*
+
+### Internal Documentation
+
+Index your team's private documentation:
+
+```bash
+npx @arabold/docs-mcp-server@latest scrape internal file:///Users/me/company-docs
+```
+
+Your AI can now answer questions about your internal APIs and best practices.
+
+### Package-Specific Help
+
+Get help with specific library versions:
+
+```bash
+npx @arabold/docs-mcp-server@latest scrape lodash npm:lodash@4.17.21
+```
+
+Ask: *"Show me how to use debounce in lodash 4.17"*
+
+### Local Project Documentation
+
+Index your project's README and guides:
+
+```bash
+npx @arabold/docs-mcp-server@latest scrape my-project file:///Users/me/projects/my-app
+```
+
+## Open Source Alternative
+
+Grounded Docs is the open-source alternative to commercial documentation tools:
+
+- **Context7**: Proprietary, cloud-based
+- **Nia**: Closed source
+- **Ref.Tools**: Limited to web documentation
+
+With Grounded Docs, you get:
+- Full control over your data
+- No vendor lock-in
+- Extensible architecture
+- Active community development
+
+## Architecture Highlights
+
+<Note>
+  For a deep dive into the system architecture, see the [Architecture documentation](https://github.com/arabold/docs-mcp-server/blob/main/ARCHITECTURE.md).
+</Note>
+
+**Content Processing Pipeline**:
+1. Fetcher retrieves content from various sources
+2. Middleware transforms HTML/Markdown/PDF to plain text
+3. Semantic splitters chunk content by structure (headers, code blocks)
+4. Greedy optimizer adjusts chunk sizes for embedding quality
+5. Embeddings are generated (optional) and stored in SQLite
+
+**Search System**:
+- Vector similarity search using sqlite-vec
+- Full-text search using SQLite FTS5
+- Reciprocal Rank Fusion combines results
+- Configurable ranking weights
+
+**Event-Driven Updates**:
+- Real-time progress updates via EventBus
+- WebSocket subscriptions for distributed mode
+- Job state persistence for recovery
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get up and running in 5 minutes
+  </Card>
+  
+  <Card title="Installation Guide" icon="download" href="/setup/installation">
+    Detailed setup instructions for all deployment modes
+  </Card>
+  
+  <Card title="Connecting Clients" icon="link" href="/setup/connecting-clients">
+    Configure Claude, Cursor, VS Code, and other AI assistants
+  </Card>
+  
+  <Card title="Embedding Models" icon="brain" href="/guides/embedding-models">
+    Enable semantic search with OpenAI, Ollama, or other providers
+  </Card>
+</CardGroup>

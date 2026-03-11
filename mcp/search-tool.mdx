@@ -1,0 +1,409 @@
+---
+title: search_docs Tool
+description: Search indexed documentation for a library or package
+---
+
+The `search_docs` tool performs semantic search across indexed documentation, returning relevant content chunks with their source URLs.
+
+## Tool Definition
+
+**MCP Tool Name:** `search_docs`
+
+**Source:** `src/tools/SearchTool.ts`
+
+**Description:** Search up-to-date documentation for a library or package. Supports exact version matches, X-Range patterns, and version-less queries.
+
+## Parameters
+
+<ParamField path="library" type="string" required>
+  Library name to search in (e.g., "react", "typescript", "lodash")
+</ParamField>
+
+<ParamField path="version" type="string" optional>
+  Library version (exact or X-Range pattern). If omitted, searches the latest available version.
+  
+  **Examples:**
+  - `"18.2.0"` - Exact version match
+  - `"18.x"` - Any version 18.x.x
+  - `"18.2.x"` - Any version 18.2.x
+  - Omit for latest version
+</ParamField>
+
+<ParamField path="query" type="string" required>
+  Documentation search query (e.g., "hooks lifecycle", "ReturnType example")
+</ParamField>
+
+<ParamField path="limit" type="number" default="5" optional>
+  Maximum number of results to return (1-100)
+</ParamField>
+
+<ParamField path="exactMatch" type="boolean" default="false" optional>
+  When true, requires exact version match (no X-Range resolution). Used internally for precise queries.
+</ParamField>
+
+## Response Structure
+
+<ResponseField name="results" type="StoreSearchResult[]">
+  Array of search results ordered by relevance
+  
+  <ResponseField name="url" type="string">
+    Source URL of the documentation page
+  </ResponseField>
+  
+  <ResponseField name="content" type="string">
+    Relevant content chunk (markdown format)
+  </ResponseField>
+  
+  <ResponseField name="library" type="string">
+    Library name
+  </ResponseField>
+  
+  <ResponseField name="version" type="string">
+    Exact version this result is from
+  </ResponseField>
+  
+  <ResponseField name="score" type="number">
+    Relevance score (higher is more relevant)
+  </ResponseField>
+</ResponseField>
+
+## TypeScript Types
+
+```typescript
+interface SearchToolOptions {
+  library: string;
+  version?: string;
+  query: string;
+  limit?: number;
+  exactMatch?: boolean;
+}
+
+interface SearchToolResult {
+  results: StoreSearchResult[];
+}
+
+interface StoreSearchResult {
+  url: string;
+  content: string;
+  library: string;
+  version: string;
+  score: number;
+}
+```
+
+See `src/tools/SearchTool.ts:7-28` for complete type definitions.
+
+## Example Requests
+
+### Search Latest Version
+
+```json
+{
+  "name": "search_docs",
+  "arguments": {
+    "library": "react",
+    "query": "hooks lifecycle"
+  }
+}
+```
+
+### Search Specific Version
+
+```json
+{
+  "name": "search_docs",
+  "arguments": {
+    "library": "react",
+    "version": "18.0.0",
+    "query": "hooks lifecycle",
+    "limit": 3
+  }
+}
+```
+
+### Search with X-Range
+
+```json
+{
+  "name": "search_docs",
+  "arguments": {
+    "library": "typescript",
+    "version": "5.x",
+    "query": "ReturnType example"
+  }
+}
+```
+
+## Example Response
+
+```json
+{
+  "results": [
+    {
+      "url": "https://react.dev/reference/react/hooks",
+      "content": "# Hooks\n\nHooks let you use different React features from your components. You can either use the built-in Hooks or combine them to build your own...\n\n## State Hooks\n\nState lets a component remember information like user input. For example, a form component can use state to store the input value...",
+      "library": "react",
+      "version": "18.2.0",
+      "score": 0.89
+    },
+    {
+      "url": "https://react.dev/reference/react/useState",
+      "content": "# useState\n\n`useState` is a React Hook that lets you add a state variable to your component.\n\n```js\nconst [state, setState] = useState(initialState);\n```\n\n## Reference\n\n### `useState(initialState)`\n\nCall `useState` at the top level of your component to declare a state variable...",
+      "library": "react",
+      "version": "18.2.0",
+      "score": 0.85
+    }
+  ]
+}
+```
+
+## MCP Output
+
+When called through MCP (see `src/mcp/mcpServer.ts:173`), results are formatted as:
+
+```
+------------------------------------------------------------
+Result 1: https://react.dev/reference/react/hooks
+
+# Hooks
+
+Hooks let you use different React features from your components. You can either use the built-in Hooks or combine them to build your own...
+
+------------------------------------------------------------
+Result 2: https://react.dev/reference/react/useState
+
+# useState
+
+`useState` is a React Hook that lets you add a state variable to your component...
+```
+
+If no results found:
+
+```
+No results found for 'hooks lifecycle' in react. Try to use a different or more general query.
+```
+
+## Error Cases
+
+### Invalid Library Name
+
+Throws `ValidationError`:
+
+```json
+{
+  "error": "Library name is required and must be a non-empty string."
+}
+```
+
+### Invalid Query
+
+Throws `ValidationError`:
+
+```json
+{
+  "error": "Query is required and must be a non-empty string."
+}
+```
+
+### Invalid Limit
+
+Throws `ValidationError`:
+
+```json
+{
+  "error": "Limit must be a number between 1 and 100."
+}
+```
+
+### Library Not Found
+
+Throws `LibraryNotFoundInStoreError` with suggestions:
+
+```json
+{
+  "error": "Library 'reactjs' not found in store.",
+  "suggestions": ["react", "react-dom", "react-router"]
+}
+```
+
+### Version Not Found
+
+Throws `VersionNotFoundInStoreError` with available versions:
+
+```json
+{
+  "error": "Version '19.0.0' not found for library 'react'.",
+  "availableVersions": [
+    {
+      "version": "18.2.0",
+      "documentCount": 342,
+      "uniqueUrlCount": 156,
+      "indexedAt": "2024-03-15T10:30:00.000Z"
+    },
+    {
+      "version": "17.0.2",
+      "documentCount": 298,
+      "uniqueUrlCount": 134,
+      "indexedAt": "2024-02-20T08:15:00.000Z"
+    }
+  ]
+}
+```
+
+## Version Resolution
+
+The tool follows this version resolution strategy:
+
+1. **Exact Match** (when `exactMatch: true`):
+   - Searches only the specified version
+   - Throws error if version not found
+
+2. **Best Match** (when `exactMatch: false`, default):
+   - Resolves X-Range patterns to highest matching version
+   - Falls back to unversioned docs if no semver match
+   - Uses latest version if no version specified
+
+### Examples
+
+| Input | Available Versions | Resolved Version |
+|-------|-------------------|------------------|
+| `version: "18.2.0"` | 18.2.0, 18.1.0 | 18.2.0 |
+| `version: "18.x"` | 18.2.0, 18.1.0, 17.0.2 | 18.2.0 |
+| `version: "18.2.x"` | 18.2.1, 18.2.0, 18.1.0 | 18.2.1 |
+| `version: undefined` | 18.2.0, 17.0.2 | 18.2.0 (latest) |
+| `version: undefined` | (unversioned only) | "" (unversioned) |
+
+See `src/tools/SearchTool.ts:96-109` for version resolution logic.
+
+## Usage from MCP Clients
+
+### Claude Desktop
+
+```
+Search the React documentation for information about hooks lifecycle.
+```
+
+or
+
+```
+Search TypeScript 5.x docs for ReturnType examples.
+```
+
+### Direct MCP Call
+
+```typescript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+
+const result = await client.callTool({
+  name: 'search_docs',
+  arguments: {
+    library: 'react',
+    version: '18.x',
+    query: 'hooks lifecycle',
+    limit: 5
+  }
+});
+```
+
+## Implementation Details
+
+The tool validates inputs and delegates to the document service:
+
+```typescript
+async execute(options: SearchToolOptions): Promise<SearchToolResult> {
+  const { library, version, query, limit = 5, exactMatch = false } = options;
+  
+  // Validate inputs
+  if (!library || typeof library !== "string" || library.trim() === "") {
+    throw new ValidationError(
+      "Library name is required and must be a non-empty string.",
+      this.constructor.name,
+    );
+  }
+  
+  if (!query || typeof query !== "string" || query.trim() === "") {
+    throw new ValidationError(
+      "Query is required and must be a non-empty string.",
+      this.constructor.name,
+    );
+  }
+  
+  if (limit !== undefined && (typeof limit !== "number" || limit < 1 || limit > 100)) {
+    throw new ValidationError(
+      "Limit must be a number between 1 and 100.",
+      this.constructor.name,
+    );
+  }
+  
+  // Validate library exists
+  await this.docService.validateLibraryExists(library);
+  
+  // Resolve version if not exact match
+  let versionToSearch: string | null | undefined = version || "latest";
+  
+  if (!exactMatch) {
+    const versionResult = await this.docService.findBestVersion(library, version);
+    versionToSearch = versionResult.bestMatch;
+  }
+  
+  // Perform search
+  const results = await this.docService.searchStore(
+    library,
+    versionToSearch,
+    query,
+    limit,
+  );
+  
+  logger.info(`✅ Found ${results.length} matching results`);
+  
+  return { results };
+}
+```
+
+See `src/tools/SearchTool.ts:42` for the complete implementation.
+
+## Search Ranking
+
+Results are ranked by relevance using:
+
+1. **Semantic similarity**: BM25 full-text search algorithm
+2. **Content quality**: Longer, well-structured content ranks higher
+3. **Freshness**: More recently indexed versions may rank higher
+
+## Related Tools
+
+- [list_libraries](/mcp/list-libraries) - See what's indexed
+- [find_version](/mcp/find-version) - Check version availability
+- [scrape_docs](/mcp/scrape-tool) - Index new documentation
+- [fetch_url](/mcp/fetch-url) - Fetch a single page
+
+## Best Practices
+
+### Query Formulation
+
+✅ **Good queries:**
+- "hooks lifecycle" (specific concepts)
+- "ReturnType example" (specific API + use case)
+- "form validation" (common task)
+
+❌ **Poor queries:**
+- "react" (too broad)
+- "a b c" (single letters)
+- "how do I use this?" (too vague)
+
+### Version Specification
+
+✅ **Use X-Range for flexibility:**
+```json
+{ "version": "18.x" }
+```
+
+✅ **Omit version for latest:**
+```json
+{ "version": undefined }
+```
+
+❌ **Avoid overly specific versions unless necessary:**
+```json
+{ "version": "18.2.0-rc.1" }
+```

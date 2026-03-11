@@ -1,122 +1,133 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Grounded Docs MCP Server",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#5b59c6",
+    "light": "#ca88e8",
+    "dark": "#5b59c6"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://media.brand.dev/c24fa8c6-ed18-43af-a86d-a8fa3dcd0891.png",
+  "logo": {
+    "light": "https://media.brand.dev/c24fa8c6-ed18-43af-a86d-a8fa3dcd0891.png",
+    "dark": "https://media.brand.dev/c24fa8c6-ed18-43af-a86d-a8fa3dcd0891.png"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/arabold/docs-mcp-server"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/arabold/docs-mcp-server"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Setup",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "setup/installation",
+              "setup/configuration",
+              "setup/connecting-clients"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "guides/basic-usage",
+              "guides/embedding-models",
+              "guides/web-interface",
+              "guides/scraping-sources",
+              "guides/searching-docs"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Architecture",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "architecture/overview",
+              "architecture/deployment-modes",
+              "architecture/content-processing",
+              "architecture/pipeline-system",
+              "architecture/event-bus"
+            ]
+          },
+          {
+            "group": "Infrastructure",
+            "pages": [
+              "infrastructure/authentication",
+              "infrastructure/telemetry",
+              "infrastructure/docker-deployment"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "CLI Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Commands",
             "pages": [
-              "api-reference/introduction"
+              "cli/overview",
+              "cli/scrape",
+              "cli/search",
+              "cli/list",
+              "cli/remove",
+              "cli/refresh",
+              "cli/config"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Options",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "cli/global-options",
+              "cli/environment-variables"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "MCP Tools",
+        "groups": [
+          {
+            "group": "Available Tools",
+            "pages": [
+              "mcp/overview",
+              "mcp/list-libraries",
+              "mcp/find-version",
+              "mcp/scrape-tool",
+              "mcp/search-tool",
+              "mcp/fetch-url",
+              "mcp/job-management"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "groups": [
+          {
+            "group": "Development",
+            "pages": [
+              "contributing/getting-started",
+              "contributing/code-style",
+              "contributing/testing",
+              "contributing/architecture-patterns"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

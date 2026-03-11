@@ -1,0 +1,168 @@
+---
+title: MCP Protocol Overview
+description: Understanding the Model Context Protocol integration in Grounded Docs
+---
+
+Grounded Docs implements the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/), enabling AI assistants like Claude Desktop to query and index documentation directly from your MCP server.
+
+## What is MCP?
+
+The Model Context Protocol provides a standardized way for AI applications to access external data sources and tools. Grounded Docs exposes its documentation search and indexing capabilities through MCP, allowing AI assistants to:
+
+- Search indexed documentation in real-time
+- Index new library versions
+- Manage scraping jobs
+- Fetch and convert web pages to Markdown
+
+## Architecture
+
+### MCP Server Instance
+
+The MCP server is created in `src/mcp/mcpServer.ts:18` and exposes:
+
+- **Tools**: Callable functions that perform operations
+- **Resources**: URI-based data endpoints for querying state
+
+### Tool Registration
+
+Tools are registered with schemas defined using Zod validation:
+
+```typescript
+server.tool(
+  "search_docs",
+  "Search up-to-date documentation for a library or package",
+  {
+    library: z.string().trim().describe("Library name."),
+    version: z.string().trim().optional().describe("Library version (exact or X-Range, optional)."),
+    query: z.string().trim().describe("Documentation search query."),
+    limit: z.number().optional().default(5).describe("Maximum number of results."),
+  },
+  async ({ library, version, query, limit }) => {
+    // Tool implementation
+  }
+);
+```
+
+## Read-Only Mode
+
+When configured with `readOnly: true`, Grounded Docs restricts access to mutating operations:
+
+**Available in Read-Only Mode:**
+- `search_docs`
+- `list_libraries`
+- `find_version`
+- `fetch_url`
+
+**Disabled in Read-Only Mode:**
+- `scrape_docs`
+- `refresh_version`
+- `remove_docs`
+- `list_jobs`
+- `get_job_info`
+- `cancel_job`
+
+See `src/mcp/mcpServer.ts:22` for the read-only configuration logic.
+
+## Response Format
+
+All MCP tools return structured responses:
+
+### Success Response
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Result content"
+    }
+  ]
+}
+```
+
+### Error Response
+
+```json
+{
+  "isError": true,
+  "content": [
+    {
+      "type": "text",
+      "text": "Error: Description of what went wrong"
+    }
+  ]
+}
+```
+
+## Available Tools
+
+Grounded Docs provides the following MCP tools:
+
+### Read Operations
+- [search_docs](/mcp/search-tool) - Search indexed documentation
+- [list_libraries](/mcp/list-libraries) - List all indexed libraries
+- [find_version](/mcp/find-version) - Find the best matching version
+- [fetch_url](/mcp/fetch-url) - Fetch and convert a URL to Markdown
+
+### Write Operations
+- [scrape_docs](/mcp/scrape-tool) - Index new library documentation
+- [refresh_version](/mcp/scrape-tool#refresh-version) - Re-scrape an existing version
+- [remove_docs](/mcp/scrape-tool#remove-docs) - Remove indexed documentation
+
+### Job Management
+- [list_jobs](/mcp/job-management#list-jobs) - List all indexing jobs
+- [get_job_info](/mcp/job-management#get-job-info) - Get details for a specific job
+- [cancel_job](/mcp/job-management#cancel-job) - Cancel a running job
+
+## Resources
+
+MCP resources provide URI-based access to server state:
+
+### `docs://libraries`
+
+Returns a list of all indexed libraries.
+
+### `docs://libraries/{library}/versions`
+
+Returns all indexed versions for a specific library.
+
+### `docs://jobs?status={status}` (Write mode only)
+
+Returns all pipeline jobs, optionally filtered by status.
+
+### `docs://jobs/{jobId}` (Write mode only)
+
+Returns details for a specific job by ID.
+
+## Error Handling
+
+Tools implement consistent error handling:
+
+1. **Validation Errors**: Thrown when input parameters are invalid
+2. **Tool Errors**: Thrown when operations fail (library not found, job not found, etc.)
+3. **System Errors**: Caught and wrapped with user-friendly messages
+
+See `src/tools/errors.ts` for error type definitions.
+
+## Telemetry
+
+All MCP tool calls are tracked for analytics (when telemetry is enabled):
+
+```typescript
+telemetry.track(TelemetryEvent.TOOL_USED, {
+  tool: "search_docs",
+  context: "mcp_server",
+  library,
+  version,
+  query: query.substring(0, 100), // Truncated for privacy
+  limit,
+});
+```
+
+See `src/mcp/mcpServer.ts:197` for telemetry implementation.
+
+## Next Steps
+
+- [Configure MCP in Claude Desktop](/setup/connecting-clients)
+- [Search Documentation](/mcp/search-tool)
+- [Index New Libraries](/mcp/scrape-tool)

@@ -1,0 +1,260 @@
+---
+title: listLibraries Tool
+description: List all indexed libraries and their versions
+---
+
+The `listLibraries` tool returns all libraries indexed in your Grounded Docs server, along with detailed version information.
+
+## Tool Definition
+
+**MCP Tool Name:** `list_libraries`
+
+**Source:** `src/tools/ListLibrariesTool.ts`
+
+**Description:** List all indexed libraries with version details including document counts, indexing status, and progress information.
+
+## Parameters
+
+This tool takes no parameters.
+
+## Response Structure
+
+<ResponseField name="libraries" type="LibraryInfo[]">
+  Array of libraries with their version information
+  
+  <ResponseField name="name" type="string">
+    Library name
+  </ResponseField>
+  
+  <ResponseField name="versions" type="array">
+    Array of version objects
+    
+    <ResponseField name="version" type="string">
+      Version string (e.g., "18.2.0" or empty string for unversioned)
+    </ResponseField>
+    
+    <ResponseField name="documentCount" type="number">
+      Number of documents indexed for this version
+    </ResponseField>
+    
+    <ResponseField name="uniqueUrlCount" type="number">
+      Number of unique URLs indexed
+    </ResponseField>
+    
+    <ResponseField name="indexedAt" type="string | null">
+      ISO timestamp when indexing completed (null if in progress)
+    </ResponseField>
+    
+    <ResponseField name="status" type="VersionStatus">
+      Current status: `"COMPLETED"`, `"IN_PROGRESS"`, `"FAILED"`, `"QUEUED"`, or `"CANCELLED"`
+    </ResponseField>
+    
+    <ResponseField name="progress" type="object" optional>
+      Progress information (only present for non-completed versions)
+      
+      <ResponseField name="pages" type="number">
+        Number of pages scraped so far
+      </ResponseField>
+      
+      <ResponseField name="maxPages" type="number">
+        Maximum pages configured for this scrape job
+      </ResponseField>
+    </ResponseField>
+    
+    <ResponseField name="sourceUrl" type="string | null" optional>
+      Original documentation URL that was scraped
+    </ResponseField>
+  </ResponseField>
+</ResponseField>
+
+## TypeScript Types
+
+```typescript
+interface LibraryInfo {
+  name: string;
+  versions: Array<{
+    version: string;
+    documentCount: number;
+    uniqueUrlCount: number;
+    indexedAt: string | null;
+    status: VersionStatus;
+    progress?: { pages: number; maxPages: number };
+    sourceUrl?: string | null;
+  }>;
+}
+
+interface ListLibrariesResult {
+  libraries: LibraryInfo[];
+}
+
+type VersionStatus = 
+  | "COMPLETED" 
+  | "IN_PROGRESS" 
+  | "FAILED" 
+  | "QUEUED" 
+  | "CANCELLED";
+```
+
+See `src/tools/ListLibrariesTool.ts:5-21` for the complete type definitions.
+
+## Example Request
+
+```json
+{
+  "name": "list_libraries",
+  "arguments": {}
+}
+```
+
+## Example Response
+
+### With Multiple Libraries
+
+```json
+{
+  "libraries": [
+    {
+      "name": "react",
+      "versions": [
+        {
+          "version": "18.2.0",
+          "documentCount": 342,
+          "uniqueUrlCount": 156,
+          "indexedAt": "2024-03-15T10:30:00.000Z",
+          "status": "COMPLETED",
+          "sourceUrl": "https://react.dev/"
+        },
+        {
+          "version": "17.0.2",
+          "documentCount": 298,
+          "uniqueUrlCount": 134,
+          "indexedAt": "2024-02-20T08:15:00.000Z",
+          "status": "COMPLETED",
+          "sourceUrl": "https://legacy.reactjs.org/"
+        }
+      ]
+    },
+    {
+      "name": "typescript",
+      "versions": [
+        {
+          "version": "5.4.2",
+          "documentCount": 124,
+          "uniqueUrlCount": 89,
+          "indexedAt": null,
+          "status": "IN_PROGRESS",
+          "progress": {
+            "pages": 45,
+            "maxPages": 100
+          },
+          "sourceUrl": "https://www.typescriptlang.org/docs/"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### No Libraries Indexed
+
+```json
+{
+  "libraries": []
+}
+```
+
+## MCP Output
+
+When called through the MCP interface (see `src/mcp/mcpServer.ts:236`), the response is formatted as:
+
+```
+Indexed libraries:
+
+- react
+- typescript
+- vue
+```
+
+If no libraries are indexed:
+
+```
+No libraries indexed yet.
+```
+
+## Usage from MCP Clients
+
+### Claude Desktop
+
+```
+List all indexed documentation libraries.
+```
+
+### Direct MCP Call
+
+```typescript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+
+const result = await client.callTool({
+  name: 'list_libraries',
+  arguments: {}
+});
+```
+
+## Implementation Details
+
+The tool retrieves library data from the document management service:
+
+```typescript
+async execute(_options?: Record<string, never>): Promise<ListLibrariesResult> {
+  const rawLibraries = await this.docService.listLibraries();
+  
+  const libraries: LibraryInfo[] = rawLibraries.map(({ library, versions }) => ({
+    name: library,
+    versions: versions.map((v: VersionSummary) => ({
+      version: v.ref.version,
+      documentCount: v.counts.documents,
+      uniqueUrlCount: v.counts.uniqueUrls,
+      indexedAt: v.indexedAt,
+      status: v.status,
+      ...(v.progress ? { progress: v.progress } : undefined),
+      sourceUrl: v.sourceUrl,
+    })),
+  }));
+  
+  return { libraries };
+}
+```
+
+See `src/tools/ListLibrariesTool.ts:33` for the complete implementation.
+
+## Related Tools
+
+- [find_version](/mcp/find-version) - Find the best matching version for a library
+- [search_docs](/mcp/search-tool) - Search documentation within a library version
+- [scrape_docs](/mcp/scrape-tool) - Index new library documentation
+
+## Version Status Flow
+
+Libraries progress through these states during indexing:
+
+```
+QUEUED → IN_PROGRESS → COMPLETED
+                     ↘ FAILED
+                     ↘ CANCELLED
+```
+
+- **QUEUED**: Scraping job is waiting to start
+- **IN_PROGRESS**: Actively scraping and indexing pages
+- **COMPLETED**: All pages successfully indexed
+- **FAILED**: Scraping encountered an unrecoverable error
+- **CANCELLED**: Job was manually cancelled via `cancel_job`
+
+## Resource Alternative
+
+You can also access libraries through the MCP resource endpoint:
+
+```
+docs://libraries
+```
+
+This returns the same data but follows the MCP resource protocol. See `src/mcp/mcpServer.ts:493` for implementation.

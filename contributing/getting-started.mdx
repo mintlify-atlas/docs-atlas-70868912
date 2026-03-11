@@ -1,0 +1,281 @@
+---
+title: Getting Started
+description: Set up your development environment and run the Grounded Docs MCP Server locally
+---
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- **Node.js v22.x** - Required for development (use `nvm use 22` if you have nvm)
+- **Git** - For version control
+- A code editor (VS Code recommended)
+
+<Note>
+  **Important**: Always use Node.js v22 for local development, even though `package.json` allows older versions. If you switch Node versions after installing dependencies, run `npm rebuild` to recompile native modules.
+</Note>
+
+## Quick Setup
+
+<Steps>
+  <Step title="Fork and Clone">
+    Fork the repository on GitHub and clone your fork:
+    
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/docs-mcp-server.git
+    cd docs-mcp-server
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install all project dependencies:
+    
+    ```bash
+    npm install
+    ```
+    
+    This will also set up Husky git hooks for pre-commit checks.
+  </Step>
+
+  <Step title="Build the Project">
+    Build both server and web assets:
+    
+    ```bash
+    npm run build
+    ```
+    
+    This runs two Vite builds - one for web assets and one for the server.
+  </Step>
+
+  <Step title="Verify Installation">
+    Run the test suite to verify everything is working:
+    
+    ```bash
+    npm test
+    ```
+  </Step>
+</Steps>
+
+## Development Workflow
+
+### Running the Server
+
+Start the production build:
+
+```bash
+npm start
+```
+
+For development with auto-reload:
+
+```bash
+npm run dev
+```
+
+This runs both the server and web asset watchers in parallel.
+
+### Running the Web Interface
+
+To run just the web interface:
+
+```bash
+npm run web
+```
+
+### Running Tests
+
+**Run all tests:**
+```bash
+npm test
+```
+
+**Run tests in watch mode:**
+```bash
+npm run test:watch
+```
+
+**Run a specific test file:**
+```bash
+npx vitest run src/utils/foo.test.ts
+```
+
+**Run with coverage:**
+```bash
+npm run test:coverage
+```
+
+**Run only unit tests:**
+```bash
+npm run test:unit
+```
+
+**Run only end-to-end tests:**
+```bash
+npm run test:e2e
+```
+
+<Note>
+  E2E tests automatically build the project first via the `pretest:e2e` script.
+</Note>
+
+### Code Quality Checks
+
+**Lint your code:**
+```bash
+npm run lint
+```
+
+**Auto-fix lint issues:**
+```bash
+npm run lint:fix
+```
+
+For unsafe auto-fixes (use with caution):
+```bash
+npm run lint:fix -- --unsafe
+```
+
+**Format code:**
+```bash
+npm run format
+```
+
+**Type checking:**
+```bash
+npm run typecheck
+```
+
+## Git Workflow
+
+### Branch Naming
+
+Use the following branch naming convention:
+
+```
+<type>/<issue>-<description>
+```
+
+**Examples:**
+- `feat/123-add-cache`
+- `fix/456-search-bug`
+- `docs/789-update-readme`
+
+### Commit Message Format
+
+Commit messages are strictly enforced by `commitlint`. Your commits will fail if the format is incorrect.
+
+**Format:**
+```
+<type>(<scope>): <subject>
+```
+
+**Types:**
+- `feat` - New feature
+- `fix` - Bug fix
+- `docs` - Documentation changes
+- `style` - Code style changes (formatting, missing semicolons, etc.)
+- `refactor` - Code refactoring
+- `perf` - Performance improvements
+- `test` - Adding or updating tests
+- `build` - Build system changes
+- `ci` - CI/CD changes
+- `chore` - Other changes (dependencies, config, etc.)
+- `revert` - Revert a previous commit
+
+**Subject Rules:**
+- Must be **lowercase**
+- Must **NOT** end with a period
+- Keep header under 100 characters
+
+**Examples:**
+```bash
+git commit -m "feat(search): add semantic search support"
+git commit -m "fix(scraper): handle rate limiting correctly"
+git commit -m "docs: update installation guide"
+```
+
+**With body:**
+```bash
+git commit -m "feat(embeddings): add azure openai provider
+
+Implement support for Azure OpenAI embeddings API.
+Includes configuration validation and error handling."
+```
+
+<Note>
+  Scope is optional but recommended. The body and footer should be separated from the header with a blank line.
+</Note>
+
+### Pre-commit Hooks
+
+Husky runs automatically before each commit to:
+1. Run linting checks
+2. Run type checking
+3. Run all tests
+
+<Warning>
+  **Never** bypass pre-commit hooks with `--no-verify`. These checks ensure code quality and prevent broken code from being committed.
+</Warning>
+
+### Security Guidelines
+
+**NEVER commit:**
+- Secrets or API keys
+- Credentials or passwords
+- `.env` files with sensitive data
+- Personal access tokens
+- Any other sensitive information
+
+If you accidentally commit sensitive data, contact a maintainer immediately.
+
+## Opening a Pull Request
+
+When you're ready to contribute:
+
+<Steps>
+  <Step title="Ensure All Checks Pass">
+    Make sure lint, typecheck, and tests all pass:
+    
+    ```bash
+    npm run lint && npm run typecheck && npm test
+    ```
+  </Step>
+
+  <Step title="Push Your Branch">
+    Push your feature branch to your fork:
+    
+    ```bash
+    git push origin feat/123-your-feature
+    ```
+  </Step>
+
+  <Step title="Create Pull Request">
+    Open a pull request on GitHub with:
+    - Clear title describing the change
+    - Description of what changed and why
+    - Reference to any related issues
+    - Screenshots/examples if applicable
+  </Step>
+</Steps>
+
+## Getting Help
+
+If you have questions or need help:
+
+- Check the [Architecture documentation](/contributing/architecture-patterns)
+- Review existing [GitHub issues](https://github.com/arabold/docs-mcp-server/issues)
+- Open a new issue with your question
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Code Style Guide" icon="code" href="/contributing/code-style">
+    Learn about code conventions and formatting
+  </Card>
+  <Card title="Testing Guide" icon="flask" href="/contributing/testing">
+    Understand the testing strategy
+  </Card>
+  <Card title="Architecture Patterns" icon="sitemap" href="/contributing/architecture-patterns">
+    Deep dive into system architecture
+  </Card>
+</CardGroup>

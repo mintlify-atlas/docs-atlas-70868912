@@ -1,0 +1,524 @@
+---
+title: "Scraping Sources"
+description: "Learn how to index documentation from various sources"
+---
+
+Grounded Docs supports indexing documentation from multiple source types. Each source has its own strategy for fetching and processing content.
+
+## Supported Source Types
+
+<CardGroup cols={3}>
+  <Card title="Websites" icon="globe">
+    HTTP/HTTPS documentation sites
+  </Card>
+  <Card title="GitHub" icon="github">
+    Repositories, wikis, and specific branches
+  </Card>
+  <Card title="npm" icon="npm">
+    npm package READMEs and docs
+  </Card>
+  <Card title="PyPI" icon="python">
+    Python package documentation
+  </Card>
+  <Card title="Local Files" icon="folder">
+    Filesystem directories and files
+  </Card>
+  <Card title="ZIP Archives" icon="file-zipper">
+    Compressed documentation bundles
+  </Card>
+</CardGroup>
+
+## Web Documentation
+
+Scrape documentation from HTTP/HTTPS URLs.
+
+### Basic Usage
+
+<CodeGroup>
+
+```bash CLI
+npx @arabold/docs-mcp-server@latest scrape react https://react.dev/reference/react
+```
+
+```json Web UI
+{
+  "library": "react",
+  "version": "18.x",
+  "url": "https://react.dev/reference/react"
+}
+```
+
+</CodeGroup>
+
+### Advanced Options
+
+<ParamField path="maxPages" type="number" default="1000">
+  Maximum number of pages to scrape
+</ParamField>
+
+<ParamField path="maxDepth" type="number" default="10">
+  Maximum link depth to follow
+</ParamField>
+
+<ParamField path="includePatterns" type="string[]">
+  Only scrape URLs matching these glob patterns
+  
+  Example: `["**/api/**", "**/reference/**"]`
+</ParamField>
+
+<ParamField path="excludePatterns" type="string[]">
+  Skip URLs matching these patterns
+  
+  Example: `["**/blog/**", "**/changelog/**"]`
+</ParamField>
+
+### Examples
+
+<Tabs>
+  <Tab title="React Docs">
+    ```bash
+    npx @arabold/docs-mcp-server@latest scrape react \
+      --version 18.3.1 \
+      --max-pages 500 \
+      --include '**/reference/**' \
+      https://react.dev/reference/react
+    ```
+  </Tab>
+  
+  <Tab title="Next.js Docs">
+    ```bash
+    npx @arabold/docs-mcp-server@latest scrape next.js \
+      --version 14.x \
+      --max-depth 5 \
+      --exclude '**/blog/**' \
+      https://nextjs.org/docs
+    ```
+  </Tab>
+  
+  <Tab title="Python Docs">
+    ```bash
+    npx @arabold/docs-mcp-server@latest scrape python \
+      --version 3.12 \
+      --max-pages 1000 \
+      --include '**/library/**' \
+      https://docs.python.org/3/library/
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  Use `--include` patterns to focus on specific documentation sections and speed up indexing.
+</Tip>
+
+## GitHub Repositories
+
+Index documentation directly from GitHub repositories.
+
+### URL Formats
+
+<CodeGroup>
+
+```bash Full Repository
+https://github.com/facebook/react
+```
+
+```bash Specific Directory
+https://github.com/vercel/next.js/tree/canary/docs
+```
+
+```bash Specific Branch
+https://github.com/facebook/react/tree/main/docs
+```
+
+```bash GitHub Wiki
+https://github.com/owner/repo/wiki
+```
+
+</CodeGroup>
+
+### GitHub Authentication
+
+For private repositories or to avoid rate limits, configure GitHub authentication:
+
+<CodeGroup>
+
+```bash Personal Access Token
+GITHUB_TOKEN="ghp_your_personal_access_token" \
+npx @arabold/docs-mcp-server@latest scrape my-lib https://github.com/owner/repo
+```
+
+```bash GitHub App
+GITHUB_APP_ID="123456" \
+GITHUB_APP_PRIVATE_KEY_PATH="/path/to/private-key.pem" \
+GITHUB_APP_INSTALLATION_ID="12345678" \
+npx @arabold/docs-mcp-server@latest scrape my-lib https://github.com/owner/repo
+```
+
+</CodeGroup>
+
+<Info>
+  See [Authentication](/infrastructure/authentication) for complete GitHub auth setup.
+</Info>
+
+### Supported File Types
+
+GitHub strategy processes:
+
+- Markdown files (`.md`, `.mdx`)
+- Documentation files (`.txt`, `.rst`)
+- Source code (`.js`, `.ts`, `.py`, `.java`, etc.)
+- Configuration files (`.json`, `.yaml`, `.toml`)
+
+### Examples
+
+<Tabs>
+  <Tab title="Full Repository">
+    ```bash
+    npx @arabold/docs-mcp-server@latest scrape typescript \
+      --version 5.3 \
+      https://github.com/microsoft/TypeScript
+    ```
+  </Tab>
+  
+  <Tab title="Docs Directory">
+    ```bash
+    npx @arabold/docs-mcp-server@latest scrape vue \
+      --version 3.x \
+      https://github.com/vuejs/core/tree/main/packages/vue
+    ```
+  </Tab>
+  
+  <Tab title="Private Repo">
+    ```bash
+    GITHUB_TOKEN="ghp_..." npx @arabold/docs-mcp-server@latest scrape internal-lib \
+      --version 1.0.0 \
+      https://github.com/company/internal-library
+    ```
+  </Tab>
+</Tabs>
+
+## npm Packages
+
+Index npm package documentation and READMEs.
+
+### URL Format
+
+```
+npm:<package-name>
+```
+
+### Examples
+
+<CodeGroup>
+
+```bash Regular Package
+npx @arabold/docs-mcp-server@latest scrape lodash npm:lodash --version 4.17.21
+```
+
+```bash Scoped Package
+npx @arabold/docs-mcp-server@latest scrape types-node npm:@types/node --version 20.x
+```
+
+```bash Latest Version
+npx @arabold/docs-mcp-server@latest scrape axios npm:axios --version latest
+```
+
+</CodeGroup>
+
+### What Gets Indexed
+
+- README.md and documentation files
+- Package.json metadata
+- TypeScript type definitions
+- Extracted from published npm tarball
+
+<Note>
+  npm packages are downloaded as tarballs and extracted. Documentation files are automatically detected and processed.
+</Note>
+
+## PyPI Packages
+
+Index Python package documentation from PyPI.
+
+### URL Format
+
+```
+pypi:<package-name>
+```
+
+### Examples
+
+<CodeGroup>
+
+```bash requests
+npx @arabold/docs-mcp-server@latest scrape requests pypi:requests --version 2.31.0
+```
+
+```bash django
+npx @arabold/docs-mcp-server@latest scrape django pypi:django --version 5.x
+```
+
+```bash pandas
+npx @arabold/docs-mcp-server@latest scrape pandas pypi:pandas --version latest
+```
+
+</CodeGroup>
+
+### What Gets Indexed
+
+- README and documentation files
+- Package metadata
+- Python source code docstrings
+- Extracted from PyPI distributions
+
+## Local Files
+
+Index documentation from your local filesystem.
+
+### URL Format
+
+```
+file:///<absolute-path>
+```
+
+### Platform Examples
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    ```bash Single File
+    file:///Users/me/docs/README.md
+    ```
+    
+    ```bash Directory
+    file:///home/user/project/docs
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    ```bash Single File
+    file:///C:/Users/me/Documents/README.md
+    ```
+    
+    ```bash Directory
+    file:///C:/Projects/my-app/docs
+    ```
+    
+    <Note>
+      Use forward slashes `/` even on Windows
+    </Note>
+  </Tab>
+</Tabs>
+
+### Supported File Types
+
+<CardGroup cols={2}>
+  <Card title="Documentation" icon="book">
+    `.md`, `.mdx`, `.txt`, `.rst`, `.asciidoc`
+  </Card>
+  <Card title="Source Code" icon="code">
+    `.js`, `.ts`, `.py`, `.java`, `.go`, `.rs`, etc.
+  </Card>
+  <Card title="Office Docs" icon="file-word">
+    `.docx`, `.xlsx`, `.pptx`
+  </Card>
+  <Card title="Others" icon="file">
+    `.pdf`, `.html`, `.json`, `.yaml`
+  </Card>
+</CardGroup>
+
+### Docker Volumes
+
+When using Docker, mount local directories:
+
+<Steps>
+  <Step title="Mount the volume">
+    ```bash
+    docker run --rm \
+      -v /path/to/docs:/docs:ro \
+      -v docs-mcp-data:/data \
+      -p 6280:6280 \
+      ghcr.io/arabold/docs-mcp-server:latest
+    ```
+  </Step>
+  
+  <Step title="Use container path">
+    ```bash
+    # Inside container or via web UI
+    npx @arabold/docs-mcp-server@latest scrape my-docs file:///docs
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Local file paths must be absolute. Relative paths are not supported.
+</Warning>
+
+### Examples
+
+<Tabs>
+  <Tab title="Project Docs">
+    ```bash
+    npx @arabold/docs-mcp-server@latest scrape my-project \
+      --version 1.0.0 \
+      file:///Users/me/projects/my-app/docs
+    ```
+  </Tab>
+  
+  <Tab title="Internal Wiki">
+    ```bash
+    npx @arabold/docs-mcp-server@latest scrape wiki \
+      --version latest \
+      file:///home/user/company-wiki
+    ```
+  </Tab>
+  
+  <Tab title="Single File">
+    ```bash
+    npx @arabold/docs-mcp-server@latest scrape readme \
+      --version 1.0 \
+      file:///Users/me/project/README.md
+    ```
+  </Tab>
+</Tabs>
+
+## ZIP Archives
+
+Index documentation from ZIP files.
+
+### URL Format
+
+```
+file:///<absolute-path-to-zip>
+```
+
+### Example
+
+```bash
+npx @arabold/docs-mcp-server@latest scrape archived-docs \
+  --version 2.0 \
+  file:///Users/me/downloads/docs-archive.zip
+```
+
+### Processing
+
+<Steps>
+  <Step title="Extract">
+    ZIP file is extracted to a temporary directory
+  </Step>
+  
+  <Step title="Process">
+    All supported file types are indexed
+  </Step>
+  
+  <Step title="Clean Up">
+    Temporary files are deleted after processing
+  </Step>
+</Steps>
+
+<Info>
+  ZIP archives are processed the same way as local directories. All supported file types are extracted and indexed.
+</Info>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Version Naming">
+    Use semantic versioning patterns:
+    
+    - **Exact**: `1.2.3`, `18.3.1`
+    - **X-Range**: `18.x`, `3.x` (matches latest minor/patch)
+    - **Latest**: `latest` (for most recent version)
+    
+    Consistent version naming helps with search and version resolution.
+  </Accordion>
+  
+  <Accordion title="URL Filtering">
+    Use include/exclude patterns to:
+    
+    - Focus on relevant sections (`**/api/**`, `**/reference/**`)
+    - Skip non-documentation (`**/blog/**`, `**/changelog/**`)
+    - Reduce indexing time and storage
+    - Improve search relevance
+  </Accordion>
+  
+  <Accordion title="Organize Libraries">
+    Use the organization field to group related libraries:
+    
+    ```bash
+    # React ecosystem
+    --organization facebook
+    
+    # Internal company docs
+    --organization acme-corp
+    
+    # Tools and frameworks
+    --organization dev-tools
+    ```
+  </Accordion>
+  
+  <Accordion title="Refresh vs Re-scrape">
+    - Use `refresh` for updates to existing documentation (faster, uses ETags)
+    - Use `scrape` for new libraries or complete re-indexing
+    
+    See [refresh command](/cli/refresh) for details.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Rate Limiting">
+    **Problem:** HTTP 429 errors or slow scraping
+    
+    **Solutions:**
+    - Reduce `--max-concurrency` (default: 5)
+    - Use `--delay` to add delays between requests
+    - For GitHub: Add `GITHUB_TOKEN` for higher rate limits
+  </Accordion>
+  
+  <Accordion title="Authentication Errors">
+    **Problem:** 401/403 errors for private content
+    
+    **Solutions:**
+    - Add appropriate credentials (GITHUB_TOKEN, etc.)
+    - Verify token has required permissions
+    - Check token expiration
+  </Accordion>
+  
+  <Accordion title="File Not Found">
+    **Problem:** Local file paths fail
+    
+    **Solutions:**
+    - Use absolute paths, not relative
+    - Check file/directory exists and is readable
+    - For Docker: Verify volume mount is correct
+    - Check path uses forward slashes
+  </Accordion>
+  
+  <Accordion title="Large Repositories">
+    **Problem:** Scraping takes too long or times out
+    
+    **Solutions:**
+    - Use `--include` patterns to limit scope
+    - Increase `--max-pages` if needed
+    - For GitHub: Target specific directories instead of full repo
+    - Consider splitting into multiple libraries
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Search Documentation" icon="magnifying-glass" href="/guides/searching-docs">
+    Learn how to search your indexed documentation
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/cli/scrape">
+    Complete scrape command reference
+  </Card>
+  <Card title="Configuration" icon="gear" href="/setup/configuration">
+    Configure scraper options and defaults
+  </Card>
+  <Card title="MCP Tools" icon="plug" href="/mcp/scrape-tool">
+    Use scraping from your AI assistant
+  </Card>
+</CardGroup>

@@ -1,0 +1,331 @@
+---
+title: config
+description: View or modify server configuration
+---
+
+## Usage
+
+```bash
+# View entire configuration
+docs-mcp-server config [options]
+
+# Get specific value
+docs-mcp-server config get <path> [options]
+
+# Set configuration value
+docs-mcp-server config set <path> <value>
+```
+
+## Subcommands
+
+### View Configuration
+
+```bash
+docs-mcp-server config [options]
+```
+
+Displays the entire configuration in JSON or YAML format.
+
+**Options:**
+
+<ParamField path="--json" type="boolean">
+  Output in JSON format (default for full config)
+</ParamField>
+
+<ParamField path="--yaml" type="boolean">
+  Output in YAML format
+</ParamField>
+
+### Get Value
+
+```bash
+docs-mcp-server config get <path> [options]
+```
+
+Retrieve a specific configuration value.
+
+**Arguments:**
+
+<ParamField path="path" type="string" required>
+  Dot-separated configuration path (e.g., `scraper.maxPages`)
+</ParamField>
+
+**Options:**
+
+<ParamField path="--json" type="boolean">
+  Output in JSON format (used for objects/arrays)
+</ParamField>
+
+<ParamField path="--yaml" type="boolean">
+  Output in YAML format
+</ParamField>
+
+### Set Value
+
+```bash
+docs-mcp-server config set <path> <value>
+```
+
+Modify a configuration value and save to the default config file.
+
+**Arguments:**
+
+<ParamField path="path" type="string" required>
+  Dot-separated configuration path (e.g., `scraper.maxPages`)
+</ParamField>
+
+<ParamField path="value" type="string" required>
+  Value to set. The command automatically parses the type:
+  - Numbers: `100`, `3.14`
+  - Booleans: `true`, `false`
+  - Strings: `"text"`, `text`
+  - Arrays: `["a","b","c"]`
+</ParamField>
+
+## Examples
+
+### View Configuration
+
+```bash
+# View entire config (JSON)
+docs-mcp-server config
+
+# View entire config (YAML)
+docs-mcp-server config --yaml
+```
+
+**Output:**
+```json
+{
+  "app": {
+    "storePath": "/Users/me/.local/share/docs-mcp-server",
+    "telemetryEnabled": true,
+    "readOnly": false,
+    "embeddingModel": "openai:text-embedding-3-small"
+  },
+  "scraper": {
+    "maxPages": 1000,
+    "maxDepth": 10,
+    "maxConcurrency": 5
+  },
+  "server": {
+    "protocol": "auto",
+    "host": "localhost",
+    "ports": {
+      "default": 8080,
+      "worker": 8080,
+      "mcp": 8081,
+      "web": 8082
+    }
+  }
+}
+```
+
+### Get Specific Values
+
+```bash
+# Get scalar value (plain text output)
+docs-mcp-server config get scraper.maxPages
+# Output: 1000
+
+# Get object value (JSON output)
+docs-mcp-server config get scraper
+# Output: {"maxPages": 1000, "maxDepth": 10, ...}
+
+# Get with explicit format
+docs-mcp-server config get scraper --yaml
+```
+
+### Set Values
+
+```bash
+# Set number
+docs-mcp-server config set scraper.maxPages 2000
+# Output: Updated scraper.maxPages = 2000
+
+# Set boolean
+docs-mcp-server config set app.telemetryEnabled false
+# Output: Updated app.telemetryEnabled = false
+
+# Set string
+docs-mcp-server config set app.embeddingModel "vertex:text-embedding-004"
+# Output: Updated app.embeddingModel = "vertex:text-embedding-004"
+```
+
+## Configuration Paths
+
+Common configuration paths:
+
+### Application Settings
+
+```bash
+app.storePath                    # Data storage directory
+app.telemetryEnabled             # Enable/disable telemetry
+app.readOnly                     # Read-only mode
+app.embeddingModel               # Default embedding model
+```
+
+### Scraper Settings
+
+```bash
+scraper.maxPages                 # Maximum pages to scrape
+scraper.maxDepth                 # Maximum crawl depth
+scraper.maxConcurrency           # Concurrent requests
+scraper.document.maxSize         # Max document size (bytes)
+scraper.document.minSize         # Min document size (bytes)
+```
+
+### Server Settings
+
+```bash
+server.protocol                  # Protocol (auto, stdio, http)
+server.host                      # Bind host
+server.ports.default             # Default port
+server.ports.worker              # Worker port
+server.ports.mcp                 # MCP server port
+server.ports.web                 # Web interface port
+```
+
+### Authentication Settings
+
+```bash
+auth.enabled                     # Enable authentication
+auth.issuerUrl                   # OAuth2/OIDC issuer URL
+auth.audience                    # JWT audience claim
+```
+
+### Embeddings Settings
+
+```bash
+embeddings.vectorDimension       # Vector dimension size
+embeddings.chunkSize             # Document chunk size
+embeddings.chunkOverlap          # Chunk overlap size
+```
+
+## Configuration File Location
+
+The default configuration file is stored at:
+
+- **Linux**: `~/.config/docs-mcp-server/config.yaml`
+- **macOS**: `~/Library/Application Support/docs-mcp-server/config.yaml`
+- **Windows**: `%APPDATA%\docs-mcp-server\config.yaml`
+
+View the active location:
+
+```bash
+# The config get command shows the path in debug logs
+docs-mcp-server --verbose config get app.storePath
+```
+
+## Read-Only Mode
+
+When using an explicit `--config` file, configuration becomes read-only:
+
+```bash
+# Error: Cannot modify explicit config file
+docs-mcp-server --config /path/to/config.yaml config set scraper.maxPages 2000
+# ❌ Error: Cannot modify configuration when using explicit --config file.
+
+# Solution: Remove --config to modify default config
+docs-mcp-server config set scraper.maxPages 2000
+```
+
+This prevents accidental modifications to shared or versioned config files.
+
+## Value Type Parsing
+
+The `set` command automatically detects value types:
+
+```bash
+# Numbers
+config set scraper.maxPages 2000              # Parsed as: 2000
+config set scraper.timeout 30.5               # Parsed as: 30.5
+
+# Booleans
+config set app.telemetryEnabled true          # Parsed as: true
+config set app.telemetryEnabled false         # Parsed as: false
+
+# Strings (quotes optional for simple strings)
+config set app.embeddingModel openai:text-embedding-3-small
+config set app.embeddingModel "openai:text-embedding-3-small"
+
+# Arrays (JSON format)
+config set scraper.excludePatterns '["*/blog/*","*.pdf"]'
+```
+
+## Error Handling
+
+**Invalid Path**
+```bash
+docs-mcp-server config get invalid.path
+# Error: Invalid config path 'invalid.path'
+# Use 'docs-mcp-server config' to see all available paths.
+```
+
+**Setting Object Path**
+```bash
+docs-mcp-server config set scraper "value"
+# Error: Config path 'scraper' refers to an object.
+# Use a more specific leaf path to set a scalar value.
+# Hint: Run 'docs-mcp-server config' to inspect the current structure.
+```
+
+**Read-Only Config**
+```bash
+docs-mcp-server --config /path/to/config.yaml config set scraper.maxPages 2000
+# Error: Cannot modify configuration when using explicit --config file.
+# Remove the --config flag to modify the default configuration.
+```
+
+## Environment Variables
+
+Configuration can also be set via [environment variables](/cli/environment-variables):
+
+```bash
+# Environment variable overrides config file
+export DOCS_MCP_SCRAPER_MAX_PAGES=2000
+docs-mcp-server config get scraper.maxPages
+# Output: 2000
+```
+
+## Precedence Order
+
+Configuration values are merged in this order (highest to lowest priority):
+
+1. **CLI flags** (e.g., `--max-pages 2000`)
+2. **Environment variables** (e.g., `DOCS_MCP_SCRAPER_MAX_PAGES=2000`)
+3. **Configuration file** (e.g., `config.yaml`)
+4. **Default values** (built-in defaults)
+
+## Viewing All Paths
+
+To see all available configuration paths:
+
+```bash
+# View full config with structure
+docs-mcp-server config
+
+# Extract all leaf paths (using jq)
+docs-mcp-server config --json | jq -r 'paths(scalars) | join(".")'
+```
+
+**Output:**
+```
+app.storePath
+app.telemetryEnabled
+app.readOnly
+app.embeddingModel
+scraper.maxPages
+scraper.maxDepth
+scraper.maxConcurrency
+server.protocol
+server.host
+server.ports.default
+...
+```
+
+## See Also
+
+- [Environment Variables](/cli/environment-variables) - Configure via environment
+- [Configuration Reference](/setup/configuration) - Complete configuration guide
+- [Global Options](/cli/global-options) - CLI-specific options

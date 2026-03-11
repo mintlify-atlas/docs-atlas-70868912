@@ -1,0 +1,406 @@
+---
+title: fetch_url Tool
+description: Fetch a single URL and convert its content to Markdown
+---
+
+The `fetch_url` tool fetches a single web page and converts its content to Markdown without indexing or crawling. Useful for reading documentation pages on-demand.
+
+## Tool Definition
+
+**MCP Tool Name:** `fetch_url`
+
+**Source:** `src/tools/FetchUrlTool.ts`
+
+**Description:** Fetch a single URL and convert its content to Markdown. Unlike scrape_docs, this tool only processes one page without crawling or storing the content.
+
+## Parameters
+
+<ParamField path="url" type="string" required>
+  The URL to fetch and convert to markdown. Must be a valid HTTP/HTTPS URL or file:// URL.
+</ParamField>
+
+<ParamField path="followRedirects" type="boolean" default="true" optional>
+  Whether to follow HTTP redirects (3xx responses). When false, throws an error on redirect.
+</ParamField>
+
+<ParamField path="scrapeMode" type="'fetch' | 'playwright' | 'auto'" default="auto" optional>
+  HTML processing strategy:
+  - `fetch`: Simple DOM parser (faster, less JS support)
+  - `playwright`: Headless browser (slower, full JS support)
+  - `auto`: Automatically select the best strategy (currently defaults to playwright)
+</ParamField>
+
+<ParamField path="headers" type="Record<string, string>" optional>
+  Custom HTTP headers to send with the request (e.g., for authentication).
+  
+  **Example:**
+  ```json
+  {
+    "Authorization": "Bearer token123",
+    "User-Agent": "MyBot/1.0"
+  }
+  ```
+</ParamField>
+
+## Response
+
+Returns the processed Markdown content as a string.
+
+## TypeScript Types
+
+```typescript
+interface FetchUrlToolOptions {
+  url: string;
+  followRedirects?: boolean;
+  scrapeMode?: ScrapeMode;
+  headers?: Record<string, string>;
+}
+
+enum ScrapeMode {
+  Fetch = "fetch",
+  Playwright = "playwright",
+  Auto = "auto"
+}
+```
+
+See `src/tools/FetchUrlTool.ts:11-38` for complete type definitions.
+
+## Example Requests
+
+### Basic Fetch
+
+```json
+{
+  "name": "fetch_url",
+  "arguments": {
+    "url": "https://react.dev/reference/react/useState"
+  }
+}
+```
+
+### Fetch with Custom Headers
+
+```json
+{
+  "name": "fetch_url",
+  "arguments": {
+    "url": "https://docs.private-company.com/api",
+    "headers": {
+      "Authorization": "Bearer token123"
+    }
+  }
+}
+```
+
+### Fetch without Following Redirects
+
+```json
+{
+  "name": "fetch_url",
+  "arguments": {
+    "url": "https://example.com/old-page",
+    "followRedirects": false
+  }
+}
+```
+
+### Fetch with Playwright
+
+```json
+{
+  "name": "fetch_url",
+  "arguments": {
+    "url": "https://spa-app.com/docs",
+    "scrapeMode": "playwright"
+  }
+}
+```
+
+## Example Response
+
+```markdown
+# useState
+
+`useState` is a React Hook that lets you add a state variable to your component.
+
+```js
+const [state, setState] = useState(initialState);
+```
+
+## Reference
+
+### `useState(initialState)`
+
+Call `useState` at the top level of your component to declare a state variable.
+
+```js
+import { useState } from 'react';
+
+function MyComponent() {
+  const [age, setAge] = useState(28);
+  // ...
+}
+```
+
+**Parameters:**
+
+- `initialState`: The value you want the state to be initially. It can be a value of any type, but there is a special behavior for functions...
+```
+
+## MCP Output
+
+When called through MCP (see `src/mcp/mcpServer.ts:458`), the response is the raw Markdown content.
+
+## Error Cases
+
+### Invalid URL
+
+Throws `ValidationError`:
+
+```json
+{
+  "error": "Invalid URL: not-a-url. Must be an HTTP/HTTPS URL or a file:// URL."
+}
+```
+
+### Fetch Failed
+
+Throws `ToolError`:
+
+```json
+{
+  "error": "Unable to fetch or process the URL \"https://example.com/404\". Please verify the URL is correct and accessible."
+}
+```
+
+### Empty Content
+
+Throws `ToolError`:
+
+```json
+{
+  "error": "Processing resulted in empty content for https://example.com/empty"
+}
+```
+
+## Content Processing Pipeline
+
+The tool uses a pipeline architecture to process different content types:
+
+1. **HTML**: Converted to Markdown using HTML pipeline
+2. **Markdown**: Normalized and cleaned
+3. **Plain Text**: Returned as-is
+4. **Other**: Returned as raw text with charset detection
+
+See `src/tools/FetchUrlTool.ts:96-118` for pipeline selection logic.
+
+## Supported Protocols
+
+### HTTP/HTTPS
+
+Fetches web pages using the AutoDetectFetcher:
+
+- Uses `node-fetch` by default
+- Automatically retries on transient errors (up to 3 times)
+- Respects `followRedirects` setting
+
+### file://
+
+Reads local files:
+
+```json
+{
+  "url": "file:///home/user/docs/readme.md"
+}
+```
+
+- Supports absolute paths only
+- No redirect handling
+- Infers MIME type from file extension
+
+## Usage from MCP Clients
+
+### Claude Desktop
+
+```
+Fetch the content from https://react.dev/reference/react/useState and show it to me.
+```
+
+### Direct MCP Call
+
+```typescript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+
+const result = await client.callTool({
+  name: 'fetch_url',
+  arguments: {
+    url: 'https://react.dev/reference/react/useState',
+    followRedirects: true
+  }
+});
+
+console.log(result);
+```
+
+## Implementation Details
+
+The tool validates the URL and delegates to the AutoDetectFetcher:
+
+```typescript
+async execute(options: FetchUrlToolOptions): Promise<string> {
+  const { url, scrapeMode = ScrapeMode.Auto, headers } = options;
+  
+  // Validate URL
+  if (!this.fetcher.canFetch(url)) {
+    throw new ValidationError(
+      `Invalid URL: ${url}. Must be an HTTP/HTTPS URL or a file:// URL.`,
+      this.constructor.name,
+    );
+  }
+  
+  try {
+    logger.info(`📡 Fetching ${url}...`);
+    
+    // Fetch content
+    const rawContent: RawContent = await this.fetcher.fetch(url, {
+      followRedirects: options.followRedirects ?? true,
+      maxRetries: 3,
+      headers,
+    });
+    
+    logger.info("🔄 Processing content...");
+    
+    // Process content through pipelines
+    let processed: Awaited<PipelineResult> | undefined;
+    for (const pipeline of this.pipelines) {
+      if (pipeline.canProcess(rawContent.mimeType, rawContent.content)) {
+        processed = await pipeline.process(rawContent, {...}, this.fetcher);
+        break;
+      }
+    }
+    
+    if (!processed) {
+      // Fallback: return raw content with charset detection
+      const resolvedCharset = resolveCharset(
+        rawContent.charset,
+        rawContent.content,
+        rawContent.mimeType,
+      );
+      return convertToString(rawContent.content, resolvedCharset);
+    }
+    
+    if (!processed.textContent?.trim()) {
+      throw new ToolError(
+        `Processing resulted in empty content for ${url}`,
+        this.constructor.name,
+      );
+    }
+    
+    logger.info(`✅ Successfully processed ${url}`);
+    return processed.textContent;
+  } catch (error) {
+    // Error handling
+    if (error instanceof ToolError) {
+      throw error;
+    }
+    throw new ToolError(
+      `Unable to fetch or process the URL "${url}". Please verify the URL is correct and accessible.`,
+      this.constructor.name,
+    );
+  } finally {
+    // Cleanup pipelines and fetcher
+    await Promise.allSettled([
+      ...this.pipelines.map((pipeline) => pipeline.close()),
+      this.fetcher.close(),
+    ]);
+  }
+}
+```
+
+See `src/tools/FetchUrlTool.ts:71` for the complete implementation.
+
+## Resource Cleanup
+
+The tool automatically cleans up resources after execution:
+
+- Closes all processing pipelines
+- Closes the fetcher (including browser instances if Playwright was used)
+
+See `src/tools/FetchUrlTool.ts:158-162` for cleanup logic.
+
+## Related Tools
+
+- [scrape_docs](/mcp/scrape-tool) - Index entire documentation sites
+- [search_docs](/mcp/search-tool) - Search indexed documentation
+
+## Use Cases
+
+### Quick Documentation Lookup
+
+Read a specific page without indexing:
+
+```typescript
+const content = await fetchUrl({
+  url: "https://react.dev/reference/react/useState"
+});
+```
+
+### Testing URLs Before Scraping
+
+Verify a URL is accessible before starting a full scrape:
+
+```typescript
+try {
+  await fetchUrl({ url: "https://docs.example.com" });
+  // URL is accessible, start scraping
+  await scrapeDocs({ url: "https://docs.example.com", ... });
+} catch (error) {
+  console.error("URL not accessible:", error);
+}
+```
+
+### Reading Private Documentation
+
+Access authenticated documentation:
+
+```typescript
+const content = await fetchUrl({
+  url: "https://internal.company.com/docs",
+  headers: {
+    "Authorization": "Bearer token123"
+  }
+});
+```
+
+### Converting Local Files
+
+Convert local HTML files to Markdown:
+
+```typescript
+const content = await fetchUrl({
+  url: "file:///home/user/docs/guide.html"
+});
+```
+
+## Performance Considerations
+
+### Scrape Mode Selection
+
+- **fetch** (fastest): Use for static HTML pages
+  - ~100-500ms per page
+  - No JavaScript execution
+  
+- **playwright** (slower): Use for JavaScript-heavy sites
+  - ~1-3s per page
+  - Full browser rendering
+  
+- **auto** (smart): Lets the system decide
+  - Currently defaults to Playwright for maximum compatibility
+
+### Custom Headers
+
+Adding custom headers adds minimal overhead (~10ms).
+
+### Redirect Handling
+
+Following redirects adds one round-trip per redirect (~50-200ms).
