@@ -1,0 +1,143 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Grounded Docs MCP Server",
+  "projectDescription": "MCP server for fetching, indexing, and searching documentation with semantic vector search capabilities.",
+  "theme": "aspen",
+  "primaryColor": "#5b59c6",
+  "lightColor": "#ca88e8",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Setup",
+            "pages": [
+              "setup/installation",
+              "setup/configuration",
+              "setup/connecting-clients"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/basic-usage",
+              "guides/embedding-models",
+              "guides/web-interface",
+              "guides/scraping-sources",
+              "guides/searching-docs"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/deployment-modes",
+              "architecture/content-processing",
+              "architecture/pipeline-system",
+              "architecture/event-bus"
+            ]
+          },
+          {
+            "group": "Infrastructure",
+            "pages": [
+              "infrastructure/authentication",
+              "infrastructure/telemetry",
+              "infrastructure/docker-deployment"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "cli/overview",
+              "cli/scrape",
+              "cli/search",
+              "cli/list",
+              "cli/remove",
+              "cli/refresh",
+              "cli/config"
+            ]
+          },
+          {
+            "group": "Options",
+            "pages": [
+              "cli/global-options",
+              "cli/environment-variables"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "MCP Tools",
+        "groups": [
+          {
+            "group": "Available Tools",
+            "pages": [
+              "mcp/overview",
+              "mcp/list-libraries",
+              "mcp/find-version",
+              "mcp/scrape-tool",
+              "mcp/search-tool",
+              "mcp/fetch-url",
+              "mcp/job-management"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "groups": [
+          {
+            "group": "Development",
+            "pages": [
+              "contributing/getting-started",
+              "contributing/code-style",
+              "contributing/testing",
+              "contributing/architecture-patterns"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Version-specific documentation indexing from web, GitHub, npm, PyPI, and local files",
+    "Semantic vector search using OpenAI, Gemini, Azure, AWS, and Ollama embeddings",
+    "Model Context Protocol (MCP) server with stdio and HTTP transports",
+    "CLI tool with commands for scraping, searching, and managing documentation",
+    "Web interface for managing indexed documentation libraries",
+    "Distributed deployment with separate coordinator and worker processes",
+    "Asynchronous job processing with recovery and real-time event updates",
+    "Rich file format support including HTML, Markdown, PDF, Word, Excel, PowerPoint, and source code"
+  ],
+  "publicApiSurface": [
+    "docs-mcp-server (CLI entry point)",
+    "scrape - Index documentation from URL, local path, or package registry",
+    "search - Search indexed documentation with semantic and keyword search",
+    "list - List all indexed libraries and versions",
+    "remove - Remove library or specific version from index",
+    "refresh - Re-index documentation for a specific version",
+    "config - Display current configuration",
+    "listLibraries - MCP tool to list all indexed libraries",
+    "findVersion - MCP tool to find library version information",
+    "scrapeTool - MCP tool to scrape and index documentation",
+    "searchTool - MCP tool to search indexed documentation",
+    "fetchUrl - MCP tool to fetch and convert URL content to markdown",
+    "cancelJob - MCP tool to cancel running jobs",
+    "getJobInfo - MCP tool to get job status information",
+    "listJobs - MCP tool to list all jobs"
+  ]
+}
